@@ -14,35 +14,13 @@
 #include "led_strip.h"
 #include "sdkconfig.h"
 
+#include "animation.h"
+
 static const char *TAG = "example";
 
-/* Use project configuration menu (idf.py menuconfig) to choose the GPIO to blink,
-   or you can edit the following line and set a number here.
-*/
 #define BLINK_GPIO CONFIG_BLINK_GPIO
 
-static uint8_t s_led_state = 0;
-
-#ifdef CONFIG_BLINK_LED_STRIP
-
 static led_strip_handle_t led_strip;
-
-static void blink_led(void)
-{
-    /* If the addressable LED is enabled */
-    if (s_led_state)
-    {
-        /* Set the LED pixel using RGB from 0 (0%) to 255 (100%) for each color */
-        led_strip_set_pixel(led_strip, 0, 16, 16, 16);
-        /* Refresh the strip to send data */
-        led_strip_refresh(led_strip);
-    }
-    else
-    {
-        /* Set all LED off to clear all pixels */
-        led_strip_clear(led_strip);
-    }
-}
 
 static void configure_led(void)
 {
@@ -50,59 +28,167 @@ static void configure_led(void)
     /* LED strip initialization with the GPIO and pixels number*/
     led_strip_config_t strip_config = {
         .strip_gpio_num = BLINK_GPIO,
-        .max_leds = 1, // at least one LED on board
+        .max_leds = NUM_PIXELS, // at least one LED on board
     };
-#if CONFIG_BLINK_LED_STRIP_BACKEND_RMT
-    led_strip_rmt_config_t rmt_config = {
-        .resolution_hz = 10 * 1000 * 1000, // 10MHz
-        .flags.with_dma = false,
-    };
-    ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
-#elif CONFIG_BLINK_LED_STRIP_BACKEND_SPI
     led_strip_spi_config_t spi_config = {
         .spi_bus = SPI2_HOST,
         .flags.with_dma = true,
     };
     ESP_ERROR_CHECK(led_strip_new_spi_device(&strip_config, &spi_config, &led_strip));
-#else
-#error "unsupported LED strip backend"
-#endif
     /* Set all LED off to clear all pixels */
     led_strip_clear(led_strip);
 }
 
-#elif CONFIG_BLINK_LED_GPIO
-
-static void blink_led(void)
-{
-    /* Set the GPIO level according to the state (LOW or HIGH)*/
-    gpio_set_level(BLINK_GPIO, s_led_state);
-}
-
-static void configure_led(void)
-{
-    ESP_LOGI(TAG, "Example configured to blink GPIO LED!");
-    gpio_reset_pin(BLINK_GPIO);
-    /* Set the GPIO as a push/pull output */
-    gpio_set_direction(BLINK_GPIO, GPIO_MODE_OUTPUT);
-}
-
-#else
-#error "unsupported LED type"
-#endif
-
-void app_main(void)
+#if 0
+void app_main2(void)
 {
 
     /* Configure the peripheral according to the LED type */
     configure_led();
-
+    // int brightness = 255;
+    int t = 0;
+    float brightness, wave;
+    int pixel;
     while (1)
     {
-        ESP_LOGI(TAG, "Turning the LED %s!", s_led_state == true ? "ON" : "OFF");
-        blink_led();
-        /* Toggle the LED state */
-        s_led_state = !s_led_state;
-        vTaskDelay(CONFIG_BLINK_PERIOD / portTICK_PERIOD_MS);
+        led_strip_clear(led_strip);
+
+        for (int col = 0; col < NUM_COLS; col++)
+        {
+            uint8_t r, g, b;
+            color_wheel((col * 40 + t) % 256, &r, &g, &b);
+
+            for (int row = 0; row < NUM_ROWS; row++)
+            {
+                pixel = pixel_matrix[row][col];
+
+                wave = sin((t + row * 10) * PI / 180.0f); // radians
+                brightness = (wave + 1.0f) / 2.0f;        // 0 to 1
+                ESP_LOGI(TAG, "Pixel: %d, %d %d %d", pixel,
+                         (int)(brightness * r),
+                         (int)(brightness * g),
+                         (int)(brightness * b));
+                led_strip_set_pixel(led_strip, pixel,
+                                    (int)(brightness * r),
+                                    (int)(brightness * g),
+                                    (int)(brightness * b));
+                led_strip_refresh(led_strip);
+                vTaskDelay(20 / portTICK_PERIOD_MS);
+            }
+        }
+
+        // led_strip_refresh(led_strip);
+        t = (t + 5) % 360;
+        // vTaskDelay(800 / portTICK_PERIOD_MS);
     }
+
+    return;
+
+    growing_heart();
+    growing_heart();
+    growing_heart();
+    growing_heart();
+
+    blink_heart();
+    blink_heart();
+
+    return;
+
+    blink_heart();
+    vTaskDelay(10000 / portTICK_PERIOD_MS);
+    led_strip_clear(led_strip);
+
+    return;
+
+    // ESP_LOGI(TAG, "Turning the LED %d with brightness %d!", i, brightness);
+    for (uint8_t i = 0; i < NUMBER_OF_LEDS; i++)
+    {
+        led_strip_set_pixel(led_strip, i, brightness * 1, brightness * 1, brightness * 1);
+
+        led_strip_refresh(led_strip);
+        vTaskDelay(500 / portTICK_PERIOD_MS);
+    }
+    // while (1)
+    // {
+    brightness = 1;
+    set_color(50, 50, 50, brightness);
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+    brightness = 255;
+    set_color(50, 0, 0, brightness);
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+    led_strip_clear(led_strip);
+
+    for (uint8_t x = 0; x < WIDTH; x++)
+    {
+        for (uint8_t y = 0; y < HEIGHT; y++)
+        {
+            uint8_t led = get_led_number(x, y);
+            ESP_LOGI(TAG, "LED n x: %d, y: %d = %d", x, y, led);
+            brightness = 10;
+
+            led_strip_set_pixel(led_strip, led, brightness * 50, brightness * 50, brightness * 50);
+            led_strip_refresh(led_strip);
+            vTaskDelay(500 / portTICK_PERIOD_MS);
+        }
+        // }
+    }
+    led_strip_clear(led_strip);
+}
+#endif
+
+void app_main(void)
+{
+    /* Configure the peripheral according to the LED type */
+    configure_led();
+
+#ifdef SKY
+    int lowest_delay = 500;
+    int highest_delay = 1;
+    int current_delay = 100;
+    while (1)
+    {
+        for (current_delay = current_delay; current_delay >= highest_delay; current_delay--)
+            anim_sky_of_stars(led_strip, current_delay);
+        ESP_LOGI(TAG, "Going down...");
+
+        for (current_delay = highest_delay; current_delay <= lowest_delay; current_delay += 10)
+        {
+            ESP_LOGI(TAG, "%d", current_delay);
+
+            anim_sky_of_stars(led_strip, current_delay);
+        }
+        ESP_LOGI(TAG, "Going up...");
+    }
+#endif
+    // color_t c1 = {250, 160, 0};
+    // anim_rotating_plus_cw(led_strip, 100, c1);
+
+    // const uint8_t matrix[NUM_ROWS][NUM_COLS] = {
+    //     {0, 11, 12, 23, 24},
+    //     {1, 10, 13, 22, 25},
+    //     {2, 9, 14, 21, 26},
+    //     {3, 8, 15, 20, 27},
+    //     {4, 7, 16, 19, 28},
+    //     {5, 6, 17, 18, 29},
+    // };
+    // anim_audio_spectrum(led_strip);
+    // Traverse each column
+    // uint8_t pixel = 0;
+    // for (uint8_t col = 0; col < NUM_COLS; col++)
+    // {
+    //     // Traverse rows
+    //     for (uint8_t row = 0; row < NUM_ROWS; row++)
+    //     {
+    //         pixel = matrix[row][col];
+    //         led_strip_set_pixel(led_strip, pixel, 1, 1, 1);
+    //         led_strip_refresh(led_strip);
+    //         vTaskDelay(250 / portTICK_PERIOD_MS);
+    //         led_strip_clear(led_strip);
+    //     }
+    // }
+
+    // anim_audio_spectrum(led_strip, 50);
+
+    // anim_rainbow_scroll(led_strip, 10);
+    // anim_color_pulse(led_strip, 10);
 }
