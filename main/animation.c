@@ -21,9 +21,10 @@ static const uint8_t matrix[NUM_ROWS][NUM_COLS] = {
 };
 
 static const char *TAG = "Animations";
+ANIMATIONS_T global_current_animation;
 
 // === Sky of Stars ===
-void anim_sky_of_stars(led_strip_handle_t led_strip, int delay)
+void sky_of_stars(led_strip_handle_t led_strip, int delay)
 {
     // ESP_LOGI(TAG, "Sky full of stars %u", delay);
     // while (1)
@@ -54,7 +55,7 @@ void heart(led_strip_handle_t led_strip, uint8_t brightness)
 
     led_strip_refresh(led_strip);
 }
-void anim_heart(led_strip_handle_t led_strip)
+void heart(led_strip_handle_t led_strip)
 {
     // Growing heart
     uint8_t brightness = 10;
@@ -115,7 +116,7 @@ void anim_heart(led_strip_handle_t led_strip)
 }
 
 // === Rotating cross ===
-void anim_rotating_plus_cw(led_strip_handle_t led_strip, int delay, color_t color)
+void rotating_plus_cw(led_strip_handle_t led_strip, int delay, color_t color)
 {
     // Centro aproximado da matriz (2,2) ou (row,col)
     int cx = NUM_ROWS / 2 - 1; // = 2
@@ -168,7 +169,7 @@ void anim_rotating_plus_cw(led_strip_handle_t led_strip, int delay, color_t colo
         vTaskDelay(delay / portTICK_PERIOD_MS);
     }
 }
-void anim_rotating_plus_ccw(led_strip_handle_t led_strip, int delay, color_t color)
+void rotating_plus_ccw(led_strip_handle_t led_strip, int delay, color_t color)
 {
     // Centro aproximado da matriz (2,2) ou (row,col)
     int cx = NUM_ROWS / 2 - 1; // = 2
@@ -223,7 +224,7 @@ void anim_rotating_plus_ccw(led_strip_handle_t led_strip, int delay, color_t col
 }
 
 // === Audio spectrum cross ===
-void anim_single_column_wave(led_strip_handle_t led_strip, int t, int col)
+void single_column_wave(led_strip_handle_t led_strip, int t, int col)
 {
     if (col < 0 || col >= NUM_COLS)
         return;
@@ -255,7 +256,7 @@ void anim_single_column_wave(led_strip_handle_t led_strip, int t, int col)
     led_strip_refresh(led_strip);
 }
 
-void anim_audio_spectrum(led_strip_handle_t led_strip, int delay)
+void audio_spectrum(led_strip_handle_t led_strip, int delay)
 {
     static float levels[NUM_COLS] = {0}; // níveis suavizados
     int t = 0;
@@ -324,7 +325,7 @@ static void color_wheel(uint8_t pos, uint8_t *r, uint8_t *g, uint8_t *b)
 }
 
 // ===  Rainbow Scroll ===
-void anim_rainbow_scroll(led_strip_handle_t led_strip, int delay)
+void rainbow_scroll(led_strip_handle_t led_strip, int delay)
 {
     int frame = 0;
     while (1)
@@ -346,7 +347,7 @@ void anim_rainbow_scroll(led_strip_handle_t led_strip, int delay)
 }
 
 // === Color Pulse ===
-void anim_color_pulse(led_strip_handle_t led_strip, int delay)
+void color_pulse(led_strip_handle_t led_strip, int delay)
 {
     uint8_t r, g, b;
     int frame = 0;
@@ -367,5 +368,187 @@ void anim_color_pulse(led_strip_handle_t led_strip, int delay)
         led_strip_refresh(led_strip);
         vTaskDelay(delay / portTICK_PERIOD_MS);
         frame++;
+    }
+}
+
+// === Combine sky with color wheel ===
+// === Combine rotating cross with color wheel ===
+
+void tinkle_star_single_color(led_strip_handle_t led_strip, int delay) // colorfull single color tinkle little star
+{
+
+    // Posições da cruz (gira entre 4 estados)
+    const int cross_steps[4][5][2] = {
+        {{2, 2}, {1, 2}, {3, 2}, {2, 1}, {2, 3}}, // +
+        {{2, 2}, {1, 1}, {3, 3}, {1, 3}, {3, 1}}, // x
+        {{2, 2}, {0, 2}, {4, 2}, {2, 0}, {2, 4}}, // esticada +
+        {{2, 2}, {0, 0}, {4, 4}, {0, 4}, {4, 0}}  // esticada x
+    };
+
+    int frame = 0;
+    while (1)
+    {
+        led_strip_clear(led_strip);
+        // Gira a cada 10 frames
+        int step = (frame / 10) % 4;
+
+        // Geração de cor suave (como color_pulse)
+        float phase = (frame % 120) / 120.0f * 2 * M_PI;
+        uint8_t red = (sinf(phase) + 1.0f) * 127.5f;
+        uint8_t green = (sinf(phase + 2.1f) + 1.0f) * 127.5f;
+        uint8_t blue = (sinf(phase + 4.2f) + 1.0f) * 127.5f;
+
+        for (int i = 0; i < 5; i++)
+        {
+            int row = cross_steps[step][i][0];
+            int col = cross_steps[step][i][1];
+            int pixel = matrix[row][col];
+            led_strip_set_pixel(led_strip, pixel, red, green, blue);
+        }
+
+        led_strip_refresh(led_strip);
+        frame++;
+        vTaskDelay(delay / portTICK_PERIOD_MS);
+    }
+}
+
+void tinkle_star_rainbow(led_strip_handle_t led_strip, int delay) // colorfull tinkle little star
+{
+    float pixel_brightness[NUM_PIXELS] = {0};
+
+    const int cross_steps[4][5][2] = {
+        {{2, 2}, {1, 2}, {3, 2}, {2, 1}, {2, 3}}, // +
+        {{2, 2}, {1, 1}, {3, 3}, {1, 3}, {3, 1}}, // x
+        {{2, 2}, {0, 2}, {4, 2}, {2, 0}, {2, 4}}, // esticada +
+        {{2, 2}, {0, 0}, {4, 4}, {0, 4}, {4, 0}}  // esticada x
+    };
+
+    int frame = 0;
+    while (1)
+    {
+
+        led_strip_clear(led_strip);
+        int step = (frame / 10) % 4;
+
+        // Atualiza os LEDs da cruz para brilho máximo (1.0)
+        for (int i = 0; i < 5; i++)
+        {
+            int row = cross_steps[step][i][0];
+            int col = cross_steps[step][i][1];
+            int pixel = matrix[row][col];
+            if (pixel >= 0 && pixel < NUM_PIXELS)
+                pixel_brightness[pixel] = 1.0f;
+        }
+
+        // Aplica fade aos pixels e atualiza a cor
+        for (int i = 0; i < NUM_PIXELS; i++)
+        {
+            // Aplica decaimento
+            pixel_brightness[i] *= 0.8f;
+            if (pixel_brightness[i] < 0.01f)
+                pixel_brightness[i] = 0;
+
+            // Calcula cor tipo arco-íris
+            float wave = (frame + i * 3) * 0.1f;
+
+            uint8_t r = (sinf(wave) + 1.0f) * 127.5f * pixel_brightness[i];
+            uint8_t g = (sinf(wave + 2.1f) + 1.0f) * 127.5f * pixel_brightness[i];
+            uint8_t b = (sinf(wave + 4.2f) + 1.0f) * 127.5f * pixel_brightness[i];
+
+            led_strip_set_pixel(led_strip, i, r, g, b);
+        }
+
+        led_strip_refresh(led_strip);
+        frame++;
+        vTaskDelay(delay / portTICK_PERIOD_MS);
+    }
+}
+
+void rotating_cross_single_color(led_strip_handle_t led_strip, int delay) // colorfull single color tinkle little star
+{
+
+    // Posições da cruz (gira entre 4 estados)
+    const int cross_steps[4][6][2] = {
+        {{0, 2}, {1, 2}, {2, 2}, {3, 2}, {4, 2}, {5, 2}},
+        {{0, 0}, {1, 1}, {2, 2}, {3, 3}, {4, 4}, {4, 4}},
+        {{2, 0}, {2, 1}, {2, 2}, {2, 3}, {2, 4}, {2, 4}},
+        {{4, 0}, {3, 1}, {2, 2}, {1, 3}, {0, 4}, {0, 4}},
+    };
+
+    int frame = 0;
+    while (1)
+    {
+        led_strip_clear(led_strip);
+        // Gira a cada 10 frames
+        int step = (frame / 10) % 4;
+
+        // Geração de cor suave (como color_pulse)
+        float phase = (frame % 120) / 120.0f * 2 * M_PI;
+        uint8_t red = (sinf(phase) + 1.0f) * 127.5f;
+        uint8_t green = (sinf(phase + 2.1f) + 1.0f) * 127.5f;
+        uint8_t blue = (sinf(phase + 4.2f) + 1.0f) * 127.5f;
+
+        for (int i = 0; i < 6; i++)
+        {
+            int row = cross_steps[step][i][0];
+            int col = cross_steps[step][i][1];
+            int pixel = matrix[row][col];
+            led_strip_set_pixel(led_strip, pixel, red, green, blue);
+        }
+
+        led_strip_refresh(led_strip);
+        frame++;
+        vTaskDelay(delay / portTICK_PERIOD_MS);
+    }
+}
+
+void rotating_cross_rainbow_with_trail(led_strip_handle_t led_strip, int delay) // colorfull tinkle little star
+{
+    float pixel_brightness[NUM_PIXELS] = {0};
+
+    const int cross_steps[4][6][2] = {
+        {{0, 2}, {1, 2}, {2, 2}, {3, 2}, {4, 2}, {5, 2}},
+        {{0, 0}, {1, 1}, {2, 2}, {3, 3}, {4, 4}, {4, 4}},
+        {{2, 0}, {2, 1}, {2, 2}, {2, 3}, {2, 4}, {2, 4}},
+        {{4, 0}, {3, 1}, {2, 2}, {1, 3}, {0, 4}, {0, 4}},
+    };
+    int frame = 0;
+    while (1)
+    {
+
+        led_strip_clear(led_strip);
+        int step = (frame / 10) % 4;
+
+        // Atualiza os LEDs da cruz para brilho máximo (1.0)
+        for (int i = 0; i < 6; i++)
+        {
+            int row = cross_steps[step][i][0];
+            int col = cross_steps[step][i][1];
+            int pixel = matrix[row][col];
+            if (pixel >= 0 && pixel < NUM_PIXELS)
+                pixel_brightness[pixel] = 1.0f;
+        }
+
+        // Aplica fade aos pixels e atualiza a cor
+        for (int i = 0; i < NUM_PIXELS; i++)
+        {
+            // Aplica decaimento
+            pixel_brightness[i] *= 0.6f;
+            if (pixel_brightness[i] < 0.01f)
+                pixel_brightness[i] = 0;
+
+            // Calcula cor tipo arco-íris
+            float wave = (frame + i * 3) * 0.1f;
+
+            uint8_t r = (sinf(wave) + 1.0f) * 127.5f * pixel_brightness[i];
+            uint8_t g = (sinf(wave + 2.1f) + 1.0f) * 127.5f * pixel_brightness[i];
+            uint8_t b = (sinf(wave + 4.2f) + 1.0f) * 127.5f * pixel_brightness[i];
+
+            led_strip_set_pixel(led_strip, i, r, g, b);
+        }
+
+        led_strip_refresh(led_strip);
+        frame++;
+        vTaskDelay(delay / portTICK_PERIOD_MS);
     }
 }

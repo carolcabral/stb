@@ -7,14 +7,18 @@
    CONDITIONS OF ANY KIND, either express or implied.
 */
 #include <stdio.h>
+// #include <string.h>
+// #include <stdlib.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "driver/gpio.h"
+#include "freertos/queue.h"
+
 #include "esp_log.h"
 #include "led_strip.h"
 #include "sdkconfig.h"
 
 #include "animation.h"
+#include "timer.h"
 
 static const char *TAG = "example";
 
@@ -135,12 +139,43 @@ void app_main2(void)
     led_strip_clear(led_strip);
 }
 #endif
+static void animations_task(void *arg)
+{
+    while (1)
+    {
+        printf("Current animation: %s\n", animations_name[global_current_animation]);
+        switch (global_current_animation)
+        {
+        case AUDIO_SPECTRUM:
+            printf("AUDIO\n");
+            break;
 
+        case SKY_OF_STARS:
+            printf("sky\n");
+
+            break;
+        case ANIMATIONS_MAX:
+        default:
+            break;
+        }
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
+}
 void app_main(void)
 {
+    configure_pins();
+
     /* Configure the peripheral according to the LED type */
     configure_led();
 
+    printf("Minimum free heap size: %lu bytes\n", esp_get_minimum_free_heap_size());
+
+    // start gpio task
+    xTaskCreate(animations_task, "animations_task", 2048, NULL, 10, NULL);
+    // while (1)
+    // {
+    //     vTaskDelay(250 / portTICK_PERIOD_MS);
+    // }
 #ifdef SKY
     int lowest_delay = 500;
     int highest_delay = 1;
@@ -160,9 +195,14 @@ void app_main(void)
         ESP_LOGI(TAG, "Going up...");
     }
 #endif
-    // color_t c1 = {250, 160, 0};
-    // anim_rotating_plus_cw(led_strip, 100, c1);
+    int delay = 50;
+    // anim_rotating_cross_single_color(led_strip, 10);
+    // anim_rotating_cross_rainbow(led_strip, delay);
+    anim_rotating_cross_rainbow_with_trail(led_strip, delay);
+    // anim_rotating_cross_single_color(led_strip, delay);
 
+    // color_t c1 = {250, 160, 0};
+    // anim_rotating_plus_cw(led_strip, 1000, c1);
     // const uint8_t matrix[NUM_ROWS][NUM_COLS] = {
     //     {0, 11, 12, 23, 24},
     //     {1, 10, 13, 22, 25},
