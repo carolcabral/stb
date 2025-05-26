@@ -21,6 +21,7 @@
                             (1ULL << GPIO_INPUT_IO_5) | (1ULL << GPIO_INPUT_IO_6))
 
 static QueueHandle_t evt_queue = NULL;
+static bool timer_is_running = false;
 
 typedef struct
 {
@@ -47,6 +48,7 @@ static void IRAM_ATTR gpio_isr_handler(void *arg)
     xQueueSendFromISR(evt_queue, &it_source, NULL);
 }
 
+#define GPIO_LOVE_MASK 60
 static void get_interrupt_task(void *arg)
 {
     interrupt_source_t it_source;
@@ -56,25 +58,37 @@ static void get_interrupt_task(void *arg)
     {
         if (xQueueReceive(evt_queue, &it_source, portMAX_DELAY))
         {
-            printf("queue received!\n");
+            mask = gpio_get_level(GPIO_INPUT_IO_1) << 0 |
+                   (gpio_get_level(GPIO_INPUT_IO_2) << 1) |
+                   (gpio_get_level(GPIO_INPUT_IO_3) << 2) |
+                   (gpio_get_level(GPIO_INPUT_IO_4) << 3) |
+                   (gpio_get_level(GPIO_INPUT_IO_5) << 4) |
+                   (gpio_get_level(GPIO_INPUT_IO_6) << 5);
+
+            printf("queue received! mask = %d\n", mask);
             if (it_source.is_gpio)
             {
-
-                mask = gpio_get_level(GPIO_INPUT_IO_1) << 0 |
-                       (gpio_get_level(GPIO_INPUT_IO_2) << 1) |
-                       (gpio_get_level(GPIO_INPUT_IO_3) << 2) |
-                       (gpio_get_level(GPIO_INPUT_IO_4) << 3) |
-                       (gpio_get_level(GPIO_INPUT_IO_5) << 4) |
-                       (gpio_get_level(GPIO_INPUT_IO_6) << 5);
-
-                printf("GPIO IT %d \n", (mask - 1) % ANIMATIONS_MAX);
                 global_current_animation = (mask - 1) % ANIMATIONS_MAX;
                 // printf("GPIO[%ld] intr, val: %d | %s \n", io_num, mask, animations_name[global_current_animation]);
             }
             if (it_source.is_timer)
             {
                 printf("TIMER!\n");
-                global_current_animation = (global_current_animation + 1) % ANIMATIONS_MAX;
+                if (mask == GPIO_LOVE_MASK)
+                {
+                    printf("Love mask!\n");
+
+                    if (global_current_animation == I_LOVE_YOU)
+                    {
+                        global_current_animation = I_LOVE_LUCAS; // Loop do amor
+                    }
+                    else
+                    {
+
+                        global_current_animation = (global_current_animation + 1) % ANIMATIONS_MAX;
+                        printf("Going to %s!\n", animations_name[global_current_animation]);
+                    }
+                }
             }
         }
     }
@@ -99,10 +113,24 @@ static void configure_gpios(void)
     gpio_isr_handler_add(GPIO_INPUT_IO_6, gpio_isr_handler, (void *)GPIO_INPUT_IO_6);
 }
 
+static gptimer_handle_t gptimer = NULL;
+
+void configure_timer_alarm(int timer_interval_sec)
+{
+    if (timer_is_running)
+        return;
+    printf("COnfigurando alarme\n");
+
+    gptimer_alarm_config_t alarm_config = {
+        .reload_count = 0,                           // When the alarm event occurs, the timer will automatically reload to 0
+        .alarm_count = 1000000 * timer_interval_sec, // Set the actual alarm period, since the resolution is 1us, 1000000 represents 1s
+        .flags.auto_reload_on_alarm = true,          // Enable auto-reload function
+    };
+    // Set the timer's alarm action
+    ESP_ERROR_CHECK(gptimer_set_alarm_action(gptimer, &alarm_config));
+}
 static void configure_timer(int timer_interval_sec)
 {
-
-    gptimer_handle_t gptimer = NULL;
     gptimer_config_t timer_config = {
         .clk_src = GPTIMER_CLK_SRC_DEFAULT, // Select the default clock source
         .direction = GPTIMER_COUNT_UP,      // Counting direction is up
@@ -117,18 +145,34 @@ static void configure_timer(int timer_interval_sec)
     // Register timer event callback functions, allowing user context to be carried
     ESP_ERROR_CHECK(gptimer_register_event_callbacks(gptimer, &cbs, evt_queue));
 
-    gptimer_alarm_config_t alarm_config = {
-        .reload_count = 0,                           // When the alarm event occurs, the timer will automatically reload to 0
-        .alarm_count = 1000000 * timer_interval_sec, // Set the actual alarm period, since the resolution is 1us, 1000000 represents 1s
-        .flags.auto_reload_on_alarm = true,          // Enable auto-reload function
-    };
-    // Set the timer's alarm action
-    ESP_ERROR_CHECK(gptimer_set_alarm_action(gptimer, &alarm_config));
+    configure_timer_alarm(timer_interval_sec);
 
-    // Enable the timer
-    ESP_ERROR_CHECK(gptimer_enable(gptimer));
-    // Start the timer
-    ESP_ERROR_CHECK(gptimer_start(gptimer));
+    start_timer();
+}
+
+void start_timer()
+{
+    if (!timer_is_running)
+    {
+        timer_is_running = true;
+        // Enable the timer
+        ESP_ERROR_CHECK(gptimer_enable(gptimer));
+        // Start the timer
+        ESP_ERROR_CHECK(gptimer_start(gptimer));
+        ESP_LOGI("", "Timer enabled\n");
+    }
+}
+void stop_timer()
+{
+    printf("TIMER = %d\n", timer_is_running);
+    if (timer_is_running)
+    {
+        timer_is_running = false;
+        // Stop the timer
+        ESP_ERROR_CHECK(gptimer_stop(gptimer));
+        // Disable the timer
+        ESP_ERROR_CHECK(gptimer_disable(gptimer));
+    }
 }
 
 void configure_pins()
@@ -144,6 +188,6 @@ void configure_pins()
     // start gpio task
     xTaskCreate(get_interrupt_task, "get_interrupt_task", 2048, NULL, 10, NULL);
 
-    configure_timer(5);
+    configure_timer(10);
     configure_gpios();
 }

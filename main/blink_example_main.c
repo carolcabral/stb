@@ -141,24 +141,76 @@ void app_main2(void)
 #endif
 static void animations_task(void *arg)
 {
+    int frame = 0;
+    int delay = 45;
     while (1)
     {
         printf("Current animation: %s\n", animations_name[global_current_animation]);
         switch (global_current_animation)
         {
         case AUDIO_SPECTRUM:
-            printf("AUDIO\n");
+            // uint8_t col = (frame % (delay * 1000)) % NUM_COLS;
+            // single_column_wave(led_strip, frame, 0);
+            audio_spectrum(led_strip, frame);
             break;
 
         case SKY_OF_STARS:
-            printf("sky\n");
+            sky_of_stars(led_strip);
+
+            break;
+
+        case TINKLE_STAR_SINGLE_COLOR:
+            tinkle_star_single_color(led_strip, frame);
+
+            break;
+
+        case TINKLE_START_MULTI_COLOR:
+            tinkle_star_rainbow(led_strip, frame);
+
+            break;
+
+        case ROTATING_LINE_SINGLE_COLOR:
+            rotating_cross_single_color(led_strip, frame, frame % 2);
+
+            break;
+
+        case ROTATING_LINE_MULTI_COLOR:
+            rotating_cross_rainbow_with_trail(led_strip, frame, frame % 2);
+
+            break;
+        case RAINBOW_SCROLL:
+            rainbow_scroll(led_strip, frame);
+            break;
+        case COLOR_PULSE:
+            color_pulse(led_strip, frame);
+            break;
+
+        // Love
+        case I_LOVE_YOU:
+            // Restart timer to 5s
+            stop_timer();
+            configure_timer_alarm(5);
+            start_timer();
+            i_love_you(led_strip);
+
+            break;
+
+        case HEART:
+            growing_heart(led_strip);
+            break;
+
+        case I_LOVE_LUCAS:
+            delay = 50;
+            i_love_lucas(led_strip, frame);
 
             break;
         case ANIMATIONS_MAX:
         default:
+            led_strip_clear(led_strip);
             break;
         }
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        frame++;
+        vTaskDelay(delay / portTICK_PERIOD_MS);
     }
 }
 void app_main(void)
@@ -170,12 +222,21 @@ void app_main(void)
 
     printf("Minimum free heap size: %lu bytes\n", esp_get_minimum_free_heap_size());
 
-    // start gpio task
-    xTaskCreate(animations_task, "animations_task", 2048, NULL, 10, NULL);
+    // int delay = 50;
     // while (1)
     // {
-    //     vTaskDelay(250 / portTICK_PERIOD_MS);
+
+    //     tinkle_star_single_color(led_strip, delay);
+    //     delay++;
+    //     vTaskDelay(10 / portTICK_PERIOD_MS);
     // }
+
+    // start gpio task
+    xTaskCreate(animations_task, "animations_task", 2048, NULL, 10, NULL);
+// while (1)
+// {
+//     vTaskDelay(250 / portTICK_PERIOD_MS);
+// }
 #ifdef SKY
     int lowest_delay = 500;
     int highest_delay = 1;
@@ -195,10 +256,9 @@ void app_main(void)
         ESP_LOGI(TAG, "Going up...");
     }
 #endif
-    int delay = 50;
     // anim_rotating_cross_single_color(led_strip, 10);
     // anim_rotating_cross_rainbow(led_strip, delay);
-    anim_rotating_cross_rainbow_with_trail(led_strip, delay);
+    // anim_rotating_cross_rainbow_with_trail(led_strip, delay);
     // anim_rotating_cross_single_color(led_strip, delay);
 
     // color_t c1 = {250, 160, 0};
