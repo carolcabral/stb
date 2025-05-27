@@ -5,7 +5,7 @@
 
 static const char *TAG = "Animations";
 
-ANIMATIONS_T global_current_animation = I_LOVE_LUCAS;
+ANIMATIONS_T global_current_animation = 0;
 
 static const uint8_t matrix[NUM_ROWS][NUM_COLS] = {
     {0, 11, 12, 23, 24},
@@ -81,202 +81,8 @@ void sky_of_stars(led_strip_handle_t led_strip)
 }
 
 // === Heart ===
-void heart(led_strip_handle_t led_strip, uint8_t brightness)
-{
-    static uint8_t heart_pixels[] = {2, 3, 4, 6, 10, 12, 16, 18, 22, 26, 27, 28};
-    for (uint8_t i = 0; i < sizeof(heart_pixels); i++)
-        led_strip_set_pixel(led_strip, heart_pixels[i], brightness * 1, 0, 0);
-
-    led_strip_refresh(led_strip);
-}
-
-void anim_heart_pulse_grow(led_strip_handle_t led_strip, uint16_t frame)
-{
-    const uint8_t brightness = 30;
-
-    // Camadas do coração
-    static const uint8_t heart_layer0[] = {14};
-    static const uint8_t heart_layer1[] = {7, 8, 9, 13, 15, 19, 20, 21};
-    static const uint8_t heart_layer2[] = {2, 3, 4, 6, 10, 12, 16, 18, 22, 26, 27, 28};
-    static const uint8_t heart_layer3[] = {1, 5, 17, 23, 25, 29};
-
-    uint8_t step = frame % 40;
-
-    led_strip_clear(led_strip);
-
-    if (step < 5)
-    {
-        // Camada inicial
-        for (size_t i = 0; i < sizeof(heart_layer0); i++)
-            led_strip_set_pixel(led_strip, heart_layer0[i], brightness, 0, 0);
-    }
-    else if (step < 10)
-    {
-        // Camada 1
-        for (size_t i = 0; i < sizeof(heart_layer1); i++)
-            led_strip_set_pixel(led_strip, heart_layer1[i], brightness, 0, 0);
-    }
-    else if (step < 15)
-    {
-        // Camada 2 (coração completo)
-        for (size_t i = 0; i < sizeof(heart_layer2); i++)
-            led_strip_set_pixel(led_strip, heart_layer2[i], brightness, 0, 0);
-    }
-    else if (step < 30)
-    {
-        // Pulsação suave (fade in/out)
-        uint8_t pulse_brightness = 50 + abs(80 - (step * 8)) % 80;
-        for (size_t i = 0; i < sizeof(heart_layer2); i++)
-            led_strip_set_pixel(led_strip, heart_layer2[i], pulse_brightness, 0, 0);
-    }
-    else
-    {
-        // Brilho extra nos pontos externos
-        for (size_t i = 0; i < sizeof(heart_layer3); i++)
-            led_strip_set_pixel(led_strip, heart_layer3[i], brightness, 0, 0);
-    }
-
-    led_strip_refresh(led_strip);
-}
-
-void growing_heart(led_strip_handle_t led_strip)
-{
-    // Growing heart
-    uint8_t brightness = 255;
-    int delay = 100;
-    static uint8_t heart_pixels0[] = {14};
-    static uint8_t heart_pixels1[] = {7, 8, 9, 13, 15, 19, 20, 21};
-    static uint8_t heart_pixels2[] = {2, 3, 4, 6, 10, 12, 16, 18, 22, 26, 27, 28};
-    static uint8_t heart_pixels3[] = {1, 5, 17, 23, 25, 29};
-
-    while (global_current_animation == HEART)
-    {
-        for (uint8_t i = 0; i < sizeof(heart_pixels0); i++)
-            led_strip_set_pixel(led_strip, heart_pixels0[i], brightness * 1, 0, 0);
-
-        led_strip_refresh(led_strip);
-        vTaskDelay(delay / portTICK_PERIOD_MS);
-        led_strip_clear(led_strip);
-        for (uint8_t i = 0; i < sizeof(heart_pixels1); i++)
-            led_strip_set_pixel(led_strip, heart_pixels1[i], brightness * 1, 0, 0);
-
-        led_strip_refresh(led_strip);
-        vTaskDelay(delay / portTICK_PERIOD_MS);
-        led_strip_clear(led_strip);
-        for (uint8_t i = 0; i < sizeof(heart_pixels2); i++)
-            led_strip_set_pixel(led_strip, heart_pixels2[i], brightness * 1, 0, 0);
-
-        led_strip_refresh(led_strip);
-        vTaskDelay(delay / portTICK_PERIOD_MS);
-        // led_strip_clear(led_strip);
-
-        // Gradient heart
-        uint8_t step = 256 / 8;
-        uint8_t i = 1;
-
-        do
-        {
-            heart(led_strip, i);
-            i += step;
-            vTaskDelay(delay / portTICK_PERIOD_MS);
-        } while (i + step <= 255);
-
-        do
-        {
-            heart(led_strip, i);
-            i -= step;
-            vTaskDelay(delay / portTICK_PERIOD_MS);
-
-        } while (i - step >= 0);
-
-        led_strip_clear(led_strip);
-        for (uint8_t i = 0; i < sizeof(heart_pixels3); i++)
-            led_strip_set_pixel(led_strip, heart_pixels3[i], brightness * 1, 0, 0);
-
-        led_strip_refresh(led_strip);
-        vTaskDelay(delay / portTICK_PERIOD_MS);
-        led_strip_clear(led_strip);
-    }
-}
-void i_love_you(led_strip_handle_t led_strip)
-{
-    // Growing heart
-    uint8_t brightness = 255;
-    int delay = 100;
-    static uint8_t heart_pixels0[] = {14};
-    static uint8_t heart_pixels1[] = {7, 8, 9, 13, 15, 19, 20, 21};
-    static uint8_t heart_pixels2[] = {2, 3, 4, 6, 10, 12, 16, 18, 22, 26, 27, 28};
-    static uint8_t heart_pixels3[] = {1, 5, 17, 23, 25, 29};
-
-    static uint8_t i_pixels[] = {6, 11, 12, 13, 14, 15, 16, 17, 18, 23};
-    static uint8_t u_pixels[] = {6, 7, 8, 9, 10, 11, 12, 18, 19, 20, 21, 22, 23};
-
-    while (global_current_animation == I_LOVE_YOU)
-    {
-        // I
-        for (uint8_t i = 0; i < sizeof(i_pixels); i++)
-            led_strip_set_pixel(led_strip, i_pixels[i], brightness * 1, 0, 0);
-        led_strip_refresh(led_strip);
-        vTaskDelay(delay * 10 / portTICK_PERIOD_MS);
-        led_strip_clear(led_strip);
-
-        // // Growing heart
-        // for (uint8_t i = 0; i < sizeof(heart_pixels0); i++)
-        //     led_strip_set_pixel(led_strip, heart_pixels0[i], brightness * 1, 0, 0);
-        // led_strip_refresh(led_strip);
-        // vTaskDelay(delay / portTICK_PERIOD_MS);
-        // led_strip_clear(led_strip);
-
-        // for (uint8_t i = 0; i < sizeof(heart_pixels1); i++)
-        //     led_strip_set_pixel(led_strip, heart_pixels1[i], brightness * 1, 0, 0);
-        // led_strip_refresh(led_strip);
-        // vTaskDelay(delay / portTICK_PERIOD_MS);
-        // led_strip_clear(led_strip);
-
-        // for (uint8_t i = 0; i < sizeof(heart_pixels2); i++)
-        //     led_strip_set_pixel(led_strip, heart_pixels2[i], brightness * 1, 0, 0);
-        // led_strip_refresh(led_strip);
-        // vTaskDelay(delay / portTICK_PERIOD_MS);
-
-        // Gradient heart
-        uint8_t step = 256 / 8;
-        uint8_t i = 1;
-
-        do
-        {
-            heart(led_strip, i);
-            i += step;
-            vTaskDelay(delay / portTICK_PERIOD_MS);
-        } while (i + step <= 255);
-
-        do
-        {
-            heart(led_strip, i);
-            i -= step;
-            vTaskDelay(delay / portTICK_PERIOD_MS);
-        } while (i - step >= 0);
-        led_strip_clear(led_strip);
-
-        // // Last fade
-        // for (uint8_t i = 0; i < sizeof(heart_pixels3); i++)
-        //     led_strip_set_pixel(led_strip, heart_pixels3[i], brightness * 1, 0, 0);
-        // led_strip_refresh(led_strip);
-        // vTaskDelay(delay / portTICK_PERIOD_MS);
-        // led_strip_clear(led_strip);
-
-        // U
-        for (uint8_t i = 0; i < sizeof(u_pixels); i++)
-            led_strip_set_pixel(led_strip, u_pixels[i], brightness * 1, 0, 0);
-        led_strip_refresh(led_strip);
-        vTaskDelay(delay * 10 / portTICK_PERIOD_MS);
-        led_strip_clear(led_strip);
-    }
-}
-
-#define FONT_WIDTH 5
-#define FONT_HEIGHT 6
-
-const uint8_t font[][FONT_HEIGHT] = {
+const char message[] = "I h LUCAS ";
+const uint8_t font[][NUM_ROWS] = {
     // I
     {
         0b01110,
@@ -341,15 +147,124 @@ const uint8_t font[][FONT_HEIGHT] = {
         0b00000,
         0b00000,
         0b00000}};
+void heart(led_strip_handle_t led_strip, uint8_t brightness)
+{
+    static uint8_t heart_pixels[] = {2, 3, 4, 6, 10, 12, 16, 18, 22, 26, 27, 28};
+    for (uint8_t i = 0; i < sizeof(heart_pixels); i++)
+        led_strip_set_pixel(led_strip, heart_pixels[i], brightness * 1, 0, 0);
 
-const char message[] = "I h LUCAS ";
+    led_strip_refresh(led_strip);
+}
+void growing_heart(led_strip_handle_t led_strip)
+{
+    // Growing heart
+    uint8_t brightness = 255;
+    int delay = 100;
+    static uint8_t heart_pixels0[] = {14};
+    static uint8_t heart_pixels1[] = {7, 8, 9, 13, 15, 19, 20, 21};
+    static uint8_t heart_pixels2[] = {2, 3, 4, 6, 10, 12, 16, 18, 22, 26, 27, 28};
+    static uint8_t heart_pixels3[] = {1, 5, 17, 23, 25, 29};
 
+    while (global_current_animation == HEART)
+    {
+        for (uint8_t i = 0; i < sizeof(heart_pixels0); i++)
+            led_strip_set_pixel(led_strip, heart_pixels0[i], brightness * 1, 0, 0);
+
+        led_strip_refresh(led_strip);
+        vTaskDelay(delay / portTICK_PERIOD_MS);
+        led_strip_clear(led_strip);
+        for (uint8_t i = 0; i < sizeof(heart_pixels1); i++)
+            led_strip_set_pixel(led_strip, heart_pixels1[i], brightness * 1, 0, 0);
+
+        led_strip_refresh(led_strip);
+        vTaskDelay(delay / portTICK_PERIOD_MS);
+        led_strip_clear(led_strip);
+        for (uint8_t i = 0; i < sizeof(heart_pixels2); i++)
+            led_strip_set_pixel(led_strip, heart_pixels2[i], brightness * 1, 0, 0);
+
+        led_strip_refresh(led_strip);
+        vTaskDelay(delay / portTICK_PERIOD_MS);
+        // led_strip_clear(led_strip);
+
+        // Gradient heart
+        uint8_t step = 256 / 8;
+        uint8_t i = 1;
+
+        do
+        {
+            heart(led_strip, i);
+            i += step;
+            vTaskDelay(delay / portTICK_PERIOD_MS);
+        } while (i + step <= 255);
+
+        do
+        {
+            heart(led_strip, i);
+            i -= step;
+            vTaskDelay(delay / portTICK_PERIOD_MS);
+
+        } while (i - step >= 0);
+
+        led_strip_clear(led_strip);
+        for (uint8_t i = 0; i < sizeof(heart_pixels3); i++)
+            led_strip_set_pixel(led_strip, heart_pixels3[i], brightness * 1, 0, 0);
+
+        led_strip_refresh(led_strip);
+        vTaskDelay(delay / portTICK_PERIOD_MS);
+        led_strip_clear(led_strip);
+    }
+}
+void i_love_you(led_strip_handle_t led_strip)
+{
+    // Growing heart
+    uint8_t brightness = 255;
+    int delay = 100;
+
+    static uint8_t i_pixels[] = {6, 11, 12, 13, 14, 15, 16, 17, 18, 23};
+    static uint8_t u_pixels[] = {6, 7, 8, 9, 10, 11, 12, 18, 19, 20, 21, 22, 23};
+
+    while (global_current_animation == I_LOVE_YOU)
+    {
+        // I
+        for (uint8_t i = 0; i < sizeof(i_pixels); i++)
+            led_strip_set_pixel(led_strip, i_pixels[i], brightness * 1, 0, 0);
+        led_strip_refresh(led_strip);
+        vTaskDelay(delay * 10 / portTICK_PERIOD_MS);
+        led_strip_clear(led_strip);
+
+        // Gradient heart
+        uint8_t step = 256 / 8;
+        uint8_t i = 1;
+
+        do
+        {
+            heart(led_strip, i);
+            i += step;
+            vTaskDelay(delay / portTICK_PERIOD_MS);
+        } while (i + step <= 255);
+
+        do
+        {
+            heart(led_strip, i);
+            i -= step;
+            vTaskDelay(delay / portTICK_PERIOD_MS);
+        } while (i - step >= 0);
+        led_strip_clear(led_strip);
+
+        // U
+        for (uint8_t i = 0; i < sizeof(u_pixels); i++)
+            led_strip_set_pixel(led_strip, u_pixels[i], brightness * 1, 0, 0);
+        led_strip_refresh(led_strip);
+        vTaskDelay(delay * 10 / portTICK_PERIOD_MS);
+        led_strip_clear(led_strip);
+    }
+}
 void i_love_lucas(led_strip_handle_t led_strip, int frame)
 {
     led_strip_clear(led_strip);
 
-    const int num_chars = sizeof(message) - 1;            // sem o '\0'
-    const int total_width = num_chars * (FONT_WIDTH + 1); // 1 coluna de espaço entre letras
+    const int num_chars = sizeof(message) - 1;          // sem o '\0'
+    const int total_width = num_chars * (NUM_COLS + 1); // 1 coluna de espaço entre letras
 
     int scroll_offset = (frame / 2) % (total_width + NUM_COLS); // desliza da direita para esquerda
 
@@ -386,22 +301,22 @@ void i_love_lucas(led_strip_handle_t led_strip, int frame)
             break;
         }
 
-        int char_x = char_index * (FONT_WIDTH + 1) - scroll_offset;
+        int char_x = char_index * (NUM_COLS + 1) - scroll_offset;
 
         // Desenha caractere se estiver visível
-        if (char_x + FONT_WIDTH < 0 || char_x >= NUM_COLS)
+        if (char_x + NUM_COLS < 0 || char_x >= NUM_COLS)
             continue;
 
-        for (int row = 0; row < FONT_HEIGHT && row < NUM_ROWS; row++)
+        for (int row = 0; row < NUM_ROWS && row < NUM_ROWS; row++)
         {
             int mapped_row = NUM_ROWS - 1 - row;
 
-            for (int col = 0; col < FONT_WIDTH; col++)
+            for (int col = 0; col < NUM_COLS; col++)
             {
                 if (char_x + col < 0 || char_x + col >= NUM_COLS)
                     continue;
 
-                if (font[glyph][row] & (1 << (FONT_WIDTH - 1 - col)))
+                if (font[glyph][row] & (1 << (NUM_COLS - 1 - col)))
                 {
                     int led = matrix[mapped_row][char_x + col];
                     led_strip_set_pixel(led_strip, led, 255, 0, 0);
@@ -444,6 +359,66 @@ void rotating_plus_ccw(led_strip_handle_t led_strip, int frame, color_t color)
     }
     led_strip_refresh(led_strip);
 }
+void rotating_cross_single_color(led_strip_handle_t led_strip, int frame, uint8_t is_cw) // colorfull single color tinkle little star
+{
+    // Geração de cor suave (como color_pulse)
+    float phase = (frame % 120) / 120.0f * 2 * M_PI;
+    color_t color = {
+        .red = (sinf(phase) + 1.0f) * 127.5f,
+        .green = (sinf(phase + 2.1f) + 1.0f) * 127.5f,
+        .blue = (sinf(phase + 4.2f) + 1.0f) * 127.5f,
+    };
+
+    if (is_cw)
+        rotating_plus_cw(led_strip, frame, color);
+    else
+        rotating_plus_ccw(led_strip, frame, color);
+}
+void rotating_cross_rainbow_with_trail(led_strip_handle_t led_strip, int frame, uint8_t is_cw) // colorfull tinkle little star
+{
+    led_strip_clear(led_strip);
+    int step = (frame / 10) % 4;
+    int row, col;
+
+    // Atualiza os LEDs da cruz para brilho máximo (1.0)
+    for (int i = 0; i < 6; i++)
+    {
+        if (is_cw)
+        {
+            row = line_steps[step][i][0];
+            col = line_steps[step][i][1];
+        }
+        else
+        {
+            row = line_steps_ccw[step][i][0];
+            col = line_steps_ccw[step][i][1];
+        }
+
+        int pixel = matrix[row][col];
+        if (pixel >= 0 && pixel < NUM_PIXELS)
+            pixel_brightness[pixel] = 1.0f;
+    }
+
+    // Aplica fade aos pixels e atualiza a cor
+    for (int i = 0; i < NUM_PIXELS; i++)
+    {
+        // Aplica decaimento
+        pixel_brightness[i] *= 0.6f;
+        if (pixel_brightness[i] < 0.01f)
+            pixel_brightness[i] = 0;
+
+        // Calcula cor tipo arco-íris
+        float wave = (frame + i * 3) * 0.1f;
+
+        uint8_t r = (sinf(wave) + 1.0f) * 127.5f * pixel_brightness[i];
+        uint8_t g = (sinf(wave + 2.1f) + 1.0f) * 127.5f * pixel_brightness[i];
+        uint8_t b = (sinf(wave + 4.2f) + 1.0f) * 127.5f * pixel_brightness[i];
+
+        led_strip_set_pixel(led_strip, i, r, g, b);
+    }
+
+    led_strip_refresh(led_strip);
+}
 
 // === Audio spectrum cross ===
 void single_column_wave(led_strip_handle_t led_strip, int t, int col)
@@ -477,7 +452,6 @@ void single_column_wave(led_strip_handle_t led_strip, int t, int col)
     }
     led_strip_refresh(led_strip);
 }
-
 void audio_spectrum(led_strip_handle_t led_strip, int frame)
 {
     static float levels[NUM_COLS] = {0}; // níveis suavizados
@@ -522,6 +496,7 @@ void audio_spectrum(led_strip_handle_t led_strip, int frame)
     led_strip_refresh(led_strip);
 }
 
+// === Tinkle starts ===
 void tinkle_star_single_color(led_strip_handle_t led_strip, int frame) // colorfull single color tinkle little star
 {
     led_strip_clear(led_strip);
@@ -544,7 +519,6 @@ void tinkle_star_single_color(led_strip_handle_t led_strip, int frame) // colorf
     }
     led_strip_refresh(led_strip);
 }
-
 void tinkle_star_rainbow(led_strip_handle_t led_strip, int frame) // colorfull tinkle little star
 {
     led_strip_clear(led_strip);
@@ -565,68 +539,6 @@ void tinkle_star_rainbow(led_strip_handle_t led_strip, int frame) // colorfull t
     {
         // Aplica decaimento
         pixel_brightness[i] *= 0.8f;
-        if (pixel_brightness[i] < 0.01f)
-            pixel_brightness[i] = 0;
-
-        // Calcula cor tipo arco-íris
-        float wave = (frame + i * 3) * 0.1f;
-
-        uint8_t r = (sinf(wave) + 1.0f) * 127.5f * pixel_brightness[i];
-        uint8_t g = (sinf(wave + 2.1f) + 1.0f) * 127.5f * pixel_brightness[i];
-        uint8_t b = (sinf(wave + 4.2f) + 1.0f) * 127.5f * pixel_brightness[i];
-
-        led_strip_set_pixel(led_strip, i, r, g, b);
-    }
-
-    led_strip_refresh(led_strip);
-}
-
-void rotating_cross_single_color(led_strip_handle_t led_strip, int frame, uint8_t is_cw) // colorfull single color tinkle little star
-{
-    // Geração de cor suave (como color_pulse)
-    float phase = (frame % 120) / 120.0f * 2 * M_PI;
-    color_t color = {
-        .red = (sinf(phase) + 1.0f) * 127.5f,
-        .green = (sinf(phase + 2.1f) + 1.0f) * 127.5f,
-        .blue = (sinf(phase + 4.2f) + 1.0f) * 127.5f,
-    };
-
-    if (is_cw)
-        rotating_plus_cw(led_strip, frame, color);
-    else
-        rotating_plus_ccw(led_strip, frame, color);
-}
-
-void rotating_cross_rainbow_with_trail(led_strip_handle_t led_strip, int frame, uint8_t is_cw) // colorfull tinkle little star
-{
-    led_strip_clear(led_strip);
-    int step = (frame / 10) % 4;
-    int row, col;
-
-    // Atualiza os LEDs da cruz para brilho máximo (1.0)
-    for (int i = 0; i < 6; i++)
-    {
-        if (is_cw)
-        {
-            row = line_steps[step][i][0];
-            col = line_steps[step][i][1];
-        }
-        else
-        {
-            row = line_steps_ccw[step][i][0];
-            col = line_steps_ccw[step][i][1];
-        }
-
-        int pixel = matrix[row][col];
-        if (pixel >= 0 && pixel < NUM_PIXELS)
-            pixel_brightness[pixel] = 1.0f;
-    }
-
-    // Aplica fade aos pixels e atualiza a cor
-    for (int i = 0; i < NUM_PIXELS; i++)
-    {
-        // Aplica decaimento
-        pixel_brightness[i] *= 0.6f;
         if (pixel_brightness[i] < 0.01f)
             pixel_brightness[i] = 0;
 

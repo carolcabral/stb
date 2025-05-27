@@ -142,7 +142,9 @@ void app_main2(void)
 static void animations_task(void *arg)
 {
     int frame = 0;
-    int delay = 45;
+    // int delay = 45;
+    int delay = 10;
+
     while (1)
     {
         printf("Current animation: %s\n", animations_name[global_current_animation]);
@@ -156,27 +158,33 @@ static void animations_task(void *arg)
 
         case SKY_OF_STARS:
             sky_of_stars(led_strip);
-
             break;
 
         case TINKLE_STAR_SINGLE_COLOR:
             tinkle_star_single_color(led_strip, frame);
-
             break;
 
         case TINKLE_START_MULTI_COLOR:
             tinkle_star_rainbow(led_strip, frame);
-
             break;
 
-        case ROTATING_LINE_SINGLE_COLOR:
+        case ROTATING_LINE_SINGLE_COLOR_CW:
+            rotating_cross_single_color(led_strip, frame, 1);
+            break;
+        case ROTATING_LINE_SINGLE_COLOR_CCW:
+            rotating_cross_single_color(led_strip, frame, 0);
+            break;
+        case ROTATING_LINE_SINGLE_COLOR_ALTERNATING:
             rotating_cross_single_color(led_strip, frame, frame % 2);
-
             break;
-
-        case ROTATING_LINE_MULTI_COLOR:
+        case ROTATING_LINE_MULTI_COLOR_ALTERNATING:
             rotating_cross_rainbow_with_trail(led_strip, frame, frame % 2);
-
+            break;
+        case ROTATING_LINE_MULTI_COLOR_CW:
+            rotating_cross_rainbow_with_trail(led_strip, frame, 1);
+            break;
+        case ROTATING_LINE_MULTI_COLOR_CCW:
+            rotating_cross_rainbow_with_trail(led_strip, frame, 0);
             break;
         case RAINBOW_SCROLL:
             rainbow_scroll(led_strip, frame);
@@ -192,17 +200,13 @@ static void animations_task(void *arg)
             configure_timer_alarm(5);
             start_timer();
             i_love_you(led_strip);
-
             break;
-
         case HEART:
             growing_heart(led_strip);
             break;
-
         case I_LOVE_LUCAS:
             delay = 50;
             i_love_lucas(led_strip, frame);
-
             break;
         case ANIMATIONS_MAX:
         default:
@@ -222,73 +226,5 @@ void app_main(void)
 
     printf("Minimum free heap size: %lu bytes\n", esp_get_minimum_free_heap_size());
 
-    // int delay = 50;
-    // while (1)
-    // {
-
-    //     tinkle_star_single_color(led_strip, delay);
-    //     delay++;
-    //     vTaskDelay(10 / portTICK_PERIOD_MS);
-    // }
-
-    // start gpio task
     xTaskCreate(animations_task, "animations_task", 2048, NULL, 10, NULL);
-// while (1)
-// {
-//     vTaskDelay(250 / portTICK_PERIOD_MS);
-// }
-#ifdef SKY
-    int lowest_delay = 500;
-    int highest_delay = 1;
-    int current_delay = 100;
-    while (1)
-    {
-        for (current_delay = current_delay; current_delay >= highest_delay; current_delay--)
-            anim_sky_of_stars(led_strip, current_delay);
-        ESP_LOGI(TAG, "Going down...");
-
-        for (current_delay = highest_delay; current_delay <= lowest_delay; current_delay += 10)
-        {
-            ESP_LOGI(TAG, "%d", current_delay);
-
-            anim_sky_of_stars(led_strip, current_delay);
-        }
-        ESP_LOGI(TAG, "Going up...");
-    }
-#endif
-    // anim_rotating_cross_single_color(led_strip, 10);
-    // anim_rotating_cross_rainbow(led_strip, delay);
-    // anim_rotating_cross_rainbow_with_trail(led_strip, delay);
-    // anim_rotating_cross_single_color(led_strip, delay);
-
-    // color_t c1 = {250, 160, 0};
-    // anim_rotating_plus_cw(led_strip, 1000, c1);
-    // const uint8_t matrix[NUM_ROWS][NUM_COLS] = {
-    //     {0, 11, 12, 23, 24},
-    //     {1, 10, 13, 22, 25},
-    //     {2, 9, 14, 21, 26},
-    //     {3, 8, 15, 20, 27},
-    //     {4, 7, 16, 19, 28},
-    //     {5, 6, 17, 18, 29},
-    // };
-    // anim_audio_spectrum(led_strip);
-    // Traverse each column
-    // uint8_t pixel = 0;
-    // for (uint8_t col = 0; col < NUM_COLS; col++)
-    // {
-    //     // Traverse rows
-    //     for (uint8_t row = 0; row < NUM_ROWS; row++)
-    //     {
-    //         pixel = matrix[row][col];
-    //         led_strip_set_pixel(led_strip, pixel, 1, 1, 1);
-    //         led_strip_refresh(led_strip);
-    //         vTaskDelay(250 / portTICK_PERIOD_MS);
-    //         led_strip_clear(led_strip);
-    //     }
-    // }
-
-    // anim_audio_spectrum(led_strip, 50);
-
-    // anim_rainbow_scroll(led_strip, 10);
-    // anim_color_pulse(led_strip, 10);
 }
