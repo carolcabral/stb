@@ -1,3 +1,4 @@
-idf_component_register(SRCS "animation.c" "timer.c" "blink_example_main.c"
+idf_component_register(SRCS "blink_example_main.c"
                        INCLUDE_DIRS "."
-                       REQUIRES esp_driver_gptimer esp_driver_gpio)
+                       #REQUIRES esp_driver_gptimer esp_driver_gpio
+                       )

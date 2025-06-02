@@ -17,8 +17,10 @@
 #include "led_strip.h"
 #include "sdkconfig.h"
 
-#include "animation.h"
+#include "interrupts.h"
+#include "bleprph.h"
 #include "timer.h"
+#include "animations.h"
 
 static const char *TAG = "example";
 
@@ -143,11 +145,11 @@ static void animations_task(void *arg)
 {
     int frame = 0;
     // int delay = 45;
-    int delay = 10;
+    int delay = 100;
 
     while (1)
     {
-        printf("Current animation: %s\n", animations_name[global_current_animation]);
+        // printf("Current animation: %s\n", animations_name[global_current_animation]);
         switch (global_current_animation)
         {
         case AUDIO_SPECTRUM:
@@ -156,12 +158,11 @@ static void animations_task(void *arg)
             audio_spectrum(led_strip, frame);
             break;
 
-        case SKY_OF_STARS:
-            sky_of_stars(led_strip);
-            break;
-
+        case COLORFUL_START:
         case TINKLE_STAR_SINGLE_COLOR:
-            tinkle_star_single_color(led_strip, frame);
+            anim_spiral_wave(led_strip, frame);
+            // anim_fire_by_frame(led_strip, frame);
+            // tinkle_star_single_color(led_strip, frame);
             break;
 
         case TINKLE_START_MULTI_COLOR:
@@ -190,10 +191,19 @@ static void animations_task(void *arg)
             rainbow_scroll(led_strip, frame);
             break;
         case COLOR_PULSE:
+        case COLORFUL_END:
             color_pulse(led_strip, frame);
             break;
 
+        case WHITE_START:
+        case SKY_OF_STARS:
+        case WHITE_END:
+
+            sky_of_stars(led_strip);
+            break;
+
         // Love
+        case I_LOVE_START:
         case I_LOVE_YOU:
             // Restart timer to 5s
             stop_timer();
@@ -205,9 +215,11 @@ static void animations_task(void *arg)
             growing_heart(led_strip);
             break;
         case I_LOVE_LUCAS:
+        case I_LOVE_END:
             delay = 50;
             i_love_lucas(led_strip, frame);
             break;
+
         case ANIMATIONS_MAX:
         default:
             led_strip_clear(led_strip);
@@ -219,12 +231,20 @@ static void animations_task(void *arg)
 }
 void app_main(void)
 {
-    configure_pins();
+    configure_interrupts();
+
+    configure_timer(1000);
 
     /* Configure the peripheral according to the LED type */
     configure_led();
 
     printf("Minimum free heap size: %lu bytes\n", esp_get_minimum_free_heap_size());
+
+    configure_ble();
+    while (1)
+    {
+        vTaskDelay(10000 / portTICK_PERIOD_MS);
+    }
 
     xTaskCreate(animations_task, "animations_task", 2048, NULL, 10, NULL);
 }

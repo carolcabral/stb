@@ -12,8 +12,8 @@
 
 typedef enum
 {
-    AUDIO_SPECTRUM,
 
+    COLORFUL_START,
     TINKLE_STAR_SINGLE_COLOR,
     TINKLE_START_MULTI_COLOR,
     ROTATING_LINE_SINGLE_COLOR_CW,
@@ -22,22 +22,26 @@ typedef enum
     ROTATING_LINE_MULTI_COLOR_ALTERNATING,
     ROTATING_LINE_MULTI_COLOR_CW,
     ROTATING_LINE_MULTI_COLOR_CCW,
-
     RAINBOW_SCROLL,
     COLOR_PULSE,
+    COLORFUL_END,
 
+    WHITE_START,
     SKY_OF_STARS,
+    WHITE_END,
 
+    I_LOVE_START,
     I_LOVE_LUCAS,
     HEART,
     I_LOVE_YOU,
+    I_LOVE_END,
 
+    AUDIO_SPECTRUM,
     ANIMATIONS_MAX
 } ANIMATIONS_T;
 
 static const char *animations_name[] = {
-    "AUDIO_SPECTRUM",
-
+    "COLORFUL_START",
     "TINKLE_STAR_SINGLE_COLOR",
     "TINKLE_START_MULTI_COLOR",
     "ROTATING_LINE_SINGLE_COLOR_CW",
@@ -48,10 +52,16 @@ static const char *animations_name[] = {
     "ROTATING_LINE_MULTI_COLOR_CCW",
     "RAINBOW_SCROLL",
     "COLOR_PULSE",
+    "COLORFUL_END",
+    "WHITE_START",
     "SKY_OF_STARS",
+    "WHITE_END",
+    "I_LOVE_START",
     "I_LOVE_LUCAS",
     "HEART",
     "I_LOVE_YOU",
+    "I_LOVE_END",
+    "AUDIO_SPECTRUM",
     "ANIMATIONS_MAX",
 };
 
@@ -90,4 +100,6 @@ void i_love_you(led_strip_handle_t led_strip);
 void i_love_lucas(led_strip_handle_t led_strip, int frame);
 // ======================
 
+void anim_fire_by_frame(led_strip_handle_t led_strip, int frame);
+void anim_spiral_wave(led_strip_handle_t led_strip, uint16_t frame);
 #endif

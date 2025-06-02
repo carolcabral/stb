@@ -1,4 +1,5 @@
-#include "animation.h"
+#include <stdio.h>
+#include "animations.h"
 
 #include "esp_random.h"
 #include "esp_log.h"
@@ -587,5 +588,127 @@ void color_pulse(led_strip_handle_t led_strip, int frame)
                             (uint8_t)(brightness * g),
                             (uint8_t)(brightness * b));
     }
+    led_strip_refresh(led_strip);
+}
+
+// ====== Fire
+void anim_fire_by_frame(led_strip_handle_t led_strip, int frame)
+{
+    static uint8_t heat[6][5] = {0};
+    const uint8_t decay_rate = 20;
+    const uint8_t spark_chance = 10;
+    const uint8_t max_heat = 255;
+
+    // Dissipação rápida do calor
+    for (int y = 0; y < NUM_ROWS; y++)
+    {
+        for (int x = 0; x < NUM_COLS; x++)
+        {
+            heat[y][x] = (heat[y][x] > decay_rate) ? (heat[y][x] - decay_rate) : 0;
+
+            // Chance de faísca explosiva
+            if ((esp_random() % 100) < spark_chance)
+            {
+                heat[y][x] = (esp_random() % 100) + 155; // 155–255
+            }
+        }
+    }
+
+    led_strip_clear(led_strip);
+
+    for (int y = 0; y < NUM_ROWS; y++)
+    {
+        for (int x = 0; x < NUM_COLS; x++)
+        {
+            uint8_t value = heat[y][x];
+            uint8_t r, g, b;
+
+            if (value > 230)
+            {
+                r = 255;
+                g = 255;
+                b = 80; // amarelo quente
+            }
+            else if (value > 180)
+            {
+                r = 255;
+                g = 180;
+                b = 40; // amarelo alaranjado
+            }
+            else if (value > 120)
+            {
+                r = 255;
+                g = 100;
+                b = 10; // laranja intenso
+            }
+            else if (value > 60)
+            {
+                r = 200;
+                g = 60;
+                b = 0; // vermelho-laranja
+            }
+            else if (value > 0)
+            {
+                r = 120;
+                g = 20;
+                b = 0; // vermelho escuro
+            }
+            else
+            {
+                r = g = b = 0;
+            }
+
+            uint8_t pixel = matrix[y][x];
+            led_strip_set_pixel(led_strip, pixel, r, g, b);
+        }
+    }
+
+    led_strip_refresh(led_strip);
+}
+void anim_spiral_wave(led_strip_handle_t led_strip, uint16_t frame)
+{
+    // Ordem dos pixels da espiral, do centro para fora
+    static const uint8_t spiral_pixels[] = {
+        14,                               // Centro
+        15, 8,                            // Primeira camada
+        9, 10,                            // Segunda camada
+        13, 22, 21, 20,                   // Terceira
+        19, 16, 7, 4,                     // Quarta
+        3, 2, 1, 0,                       // Quinta
+        11, 12, 23, 24,                   // Sexta
+        25, 26, 27, 28, 29, 18, 17, 6, 5, // FInal
+    };
+    const uint8_t spiral_len = sizeof(spiral_pixels);
+    const uint8_t trail = 10;
+    const uint8_t brightness = 255;
+    const uint16_t total_frames = spiral_len * 2;
+
+    // Faz a cabeça ir até o fim e voltar: forma de onda triangular
+    uint16_t f = frame % total_frames;
+    uint16_t head = f < spiral_len ? f : (total_frames - 1 - f);
+
+    led_strip_clear(led_strip);
+
+    for (uint8_t i = 0; i < spiral_len; i++)
+    {
+        uint8_t pixel = spiral_pixels[i];
+
+        int dist = (int)i - (int)head;
+        if (dist < 0)
+            dist = -dist;
+
+        if (dist < trail)
+        {
+            float factor = 1.0f - ((float)dist / trail);
+
+            // Gradiente em tons de roxo → lilás: vermelho proporcional + azul fixo
+            uint8_t r = factor * brightness;
+            uint8_t g = 0;
+            uint8_t b = brightness;
+
+            led_strip_set_pixel(led_strip, pixel, r, g, b);
+        }
+    }
+
     led_strip_refresh(led_strip);
 }
