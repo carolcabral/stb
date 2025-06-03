@@ -12,7 +12,6 @@
 
 typedef enum
 {
-
     COLORFUL_START,
     TINKLE_STAR_SINGLE_COLOR,
     TINKLE_START_MULTI_COLOR,
@@ -37,6 +36,11 @@ typedef enum
     I_LOVE_END,
 
     AUDIO_SPECTRUM,
+
+    SPIRAL_WAVE,
+
+    FIRE,
+
     ANIMATIONS_MAX
 } ANIMATIONS_T;
 
@@ -62,6 +66,8 @@ static const char *animations_name[] = {
     "I_LOVE_YOU",
     "I_LOVE_END",
     "AUDIO_SPECTRUM",
+    "SPIRAL_WAVE",
+    "FIRE",
     "ANIMATIONS_MAX",
 };
 

@@ -24,6 +24,9 @@
 
 static const char *TAG = "example";
 
+#define DEFAULT_DELAY 10
+#define DEFAULT_TIMER 1000
+
 #define BLINK_GPIO CONFIG_BLINK_GPIO
 
 static led_strip_handle_t led_strip;
@@ -144,8 +147,7 @@ void app_main2(void)
 static void animations_task(void *arg)
 {
     int frame = 0;
-    // int delay = 45;
-    int delay = 100;
+    int delay = DEFAULT_DELAY;
 
     while (1)
     {
@@ -153,16 +155,18 @@ static void animations_task(void *arg)
         switch (global_current_animation)
         {
         case AUDIO_SPECTRUM:
+            delay = DEFAULT_DELAY;
+
             // uint8_t col = (frame % (delay * 1000)) % NUM_COLS;
             // single_column_wave(led_strip, frame, 0);
             audio_spectrum(led_strip, frame);
             break;
-
         case COLORFUL_START:
+            delay = DEFAULT_DELAY;
+            global_current_animation++;
+            break;
         case TINKLE_STAR_SINGLE_COLOR:
-            anim_spiral_wave(led_strip, frame);
-            // anim_fire_by_frame(led_strip, frame);
-            // tinkle_star_single_color(led_strip, frame);
+            tinkle_star_single_color(led_strip, frame);
             break;
 
         case TINKLE_START_MULTI_COLOR:
@@ -196,6 +200,9 @@ static void animations_task(void *arg)
             break;
 
         case WHITE_START:
+            delay = 20;
+            global_current_animation++;
+            break;
         case SKY_OF_STARS:
         case WHITE_END:
 
@@ -204,20 +211,38 @@ static void animations_task(void *arg)
 
         // Love
         case I_LOVE_START:
-        case I_LOVE_YOU:
-            // Restart timer to 5s
             stop_timer();
-            configure_timer_alarm(5);
+            configure_timer_alarm(10); // Restart timer to 5s
             start_timer();
+            delay = 50;
+            global_current_animation++; // Move to next animation
+            break;
+        case I_LOVE_YOU:
             i_love_you(led_strip);
             break;
         case HEART:
             growing_heart(led_strip);
             break;
         case I_LOVE_LUCAS:
-        case I_LOVE_END:
-            delay = 50;
             i_love_lucas(led_strip, frame);
+            break;
+
+        case I_LOVE_END:
+            delay = DEFAULT_DELAY;
+            stop_timer();
+            // Restore timer
+            configure_timer_alarm(DEFAULT_TIMER);
+            start_timer();
+
+            break;
+
+        case SPIRAL_WAVE:
+            delay = 100;
+            anim_spiral_wave(led_strip, frame);
+            break;
+
+        case FIRE:
+            anim_fire_by_frame(led_strip, frame);
             break;
 
         case ANIMATIONS_MAX:
@@ -233,7 +258,7 @@ void app_main(void)
 {
     configure_interrupts();
 
-    configure_timer(1000);
+    configure_timer(DEFAULT_TIMER);
 
     /* Configure the peripheral according to the LED type */
     configure_led();
@@ -241,10 +266,6 @@ void app_main(void)
     printf("Minimum free heap size: %lu bytes\n", esp_get_minimum_free_heap_size());
 
     configure_ble();
-    while (1)
-    {
-        vTaskDelay(10000 / portTICK_PERIOD_MS);
-    }
 
     xTaskCreate(animations_task, "animations_task", 2048, NULL, 10, NULL);
 }

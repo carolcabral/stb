@@ -35,6 +35,13 @@ void configure_timer_alarm(int timer_interval_sec)
     ESP_ERROR_CHECK(gptimer_set_alarm_action(gptimer, &alarm_config));
 }
 
+void clear_timer()
+{
+    if (gptimer == NULL)
+        return;
+
+    ESP_ERROR_CHECK(gptimer_set_raw_count(gptimer, 0));
+}
 void configure_timer(int timer_interval_sec)
 {
     gptimer_config_t timer_config = {

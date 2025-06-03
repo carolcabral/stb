@@ -6,14 +6,15 @@
 #include "esp_log.h"
 #include "interrupts.h"
 #include "animations.h"
+#include "timer.h"
 
 #define GPIO_LOVE_MASK 255
-#define GPIO_COLOR_MASK 0
-#define GPIO_WHITE_MASK 1
-#define GPIO_AUDIO_MASK 2
+#define GPIO_COLOR_MASK 254
+#define GPIO_WHITE_MASK 253
+#define GPIO_DEFAULT_MASK GPIO_COLOR_MASK
 
 QueueHandle_t evt_queue = NULL;
-static uint8_t mask = 0;
+static uint8_t mask = GPIO_DEFAULT_MASK;
 
 static void get_interrupt_task(void *arg)
 {
@@ -29,15 +30,35 @@ static void get_interrupt_task(void *arg)
             {
                 mask = it_source.mask_value;
 
-                printf("GPIO\n");
-                global_current_animation = (mask - 1) % ANIMATIONS_MAX;
+                printf("BLE\n");
+                start_timer();
+                switch (mask)
+                {
+                case GPIO_LOVE_MASK:
+                    global_current_animation = I_LOVE_START;
+                    break;
+                case GPIO_COLOR_MASK:
+                    global_current_animation = COLORFUL_START;
+                    break;
+                case GPIO_WHITE_MASK:
+                    global_current_animation = WHITE_START;
+                    break;
+
+                default:
+                    global_current_animation = mask % ANIMATIONS_MAX;
+                    stop_timer(); // Disable timer
+                    break;
+                }
+
+                clear_timer();
+
                 // printf("Going to %s!\n", animations_name[global_current_animation]);
                 // printf("GPIO[%ld] intr, val: %d | %s \n", io_num, mask, animations_name[global_current_animation]);
             }
 
             if (it_source.is_timer)
             {
-                printf("TIMER!\n");
+                printf("TIMER! %d\n", mask);
                 global_current_animation = (global_current_animation + 1) % ANIMATIONS_MAX;
 
                 switch (mask)
@@ -61,11 +82,6 @@ static void get_interrupt_task(void *arg)
                     if (global_current_animation == COLORFUL_END)
                         global_current_animation = COLORFUL_START;
                     break;
-
-                case GPIO_AUDIO_MASK:
-                    global_current_animation = AUDIO_SPECTRUM;
-                    break;
-
                 default:
                     break;
                 }
