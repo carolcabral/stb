@@ -87,7 +87,7 @@ static void get_interrupt_task(void *arg)
                 }
             }
 
-            printf("Going to %s!\n\n", animations_name[global_current_animation]);
+            // printf("Going to %s!\n\n", animations_name[global_current_animation]);
             // gpio_intr_enable(it_source.gpio_number);
         }
     }
