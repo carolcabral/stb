@@ -1,14 +1,4 @@
-/* Blink Example
-
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
-
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
-*/
 #include <stdio.h>
-// #include <string.h>
-// #include <stdlib.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
@@ -16,16 +6,18 @@
 #include "esp_log.h"
 #include "led_strip.h"
 #include "sdkconfig.h"
+#include "nvs_flash.h"
 
 #include "interrupts.h"
 #include "bleprph.h"
 #include "timer.h"
 #include "animations.h"
+#include "storage.h"
 
 static const char *TAG = "example";
 
 #define DEFAULT_DELAY 10
-#define DEFAULT_TIMER 1000
+#define DEFAULT_TIMER 10
 
 #define BLINK_GPIO CONFIG_BLINK_GPIO
 
@@ -48,102 +40,6 @@ static void configure_led(void)
     led_strip_clear(led_strip);
 }
 
-#if 0
-void app_main2(void)
-{
-
-    /* Configure the peripheral according to the LED type */
-    configure_led();
-    // int brightness = 255;
-    int t = 0;
-    float brightness, wave;
-    int pixel;
-    while (1)
-    {
-        led_strip_clear(led_strip);
-
-        for (int col = 0; col < NUM_COLS; col++)
-        {
-            uint8_t r, g, b;
-            color_wheel((col * 40 + t) % 256, &r, &g, &b);
-
-            for (int row = 0; row < NUM_ROWS; row++)
-            {
-                pixel = pixel_matrix[row][col];
-
-                wave = sin((t + row * 10) * PI / 180.0f); // radians
-                brightness = (wave + 1.0f) / 2.0f;        // 0 to 1
-                ESP_LOGI(TAG, "Pixel: %d, %d %d %d", pixel,
-                         (int)(brightness * r),
-                         (int)(brightness * g),
-                         (int)(brightness * b));
-                led_strip_set_pixel(led_strip, pixel,
-                                    (int)(brightness * r),
-                                    (int)(brightness * g),
-                                    (int)(brightness * b));
-                led_strip_refresh(led_strip);
-                vTaskDelay(20 / portTICK_PERIOD_MS);
-            }
-        }
-
-        // led_strip_refresh(led_strip);
-        t = (t + 5) % 360;
-        // vTaskDelay(800 / portTICK_PERIOD_MS);
-    }
-
-    return;
-
-    growing_heart();
-    growing_heart();
-    growing_heart();
-    growing_heart();
-
-    blink_heart();
-    blink_heart();
-
-    return;
-
-    blink_heart();
-    vTaskDelay(10000 / portTICK_PERIOD_MS);
-    led_strip_clear(led_strip);
-
-    return;
-
-    // ESP_LOGI(TAG, "Turning the LED %d with brightness %d!", i, brightness);
-    for (uint8_t i = 0; i < NUMBER_OF_LEDS; i++)
-    {
-        led_strip_set_pixel(led_strip, i, brightness * 1, brightness * 1, brightness * 1);
-
-        led_strip_refresh(led_strip);
-        vTaskDelay(500 / portTICK_PERIOD_MS);
-    }
-    // while (1)
-    // {
-    brightness = 1;
-    set_color(50, 50, 50, brightness);
-    vTaskDelay(500 / portTICK_PERIOD_MS);
-    brightness = 255;
-    set_color(50, 0, 0, brightness);
-    vTaskDelay(500 / portTICK_PERIOD_MS);
-    led_strip_clear(led_strip);
-
-    for (uint8_t x = 0; x < WIDTH; x++)
-    {
-        for (uint8_t y = 0; y < HEIGHT; y++)
-        {
-            uint8_t led = get_led_number(x, y);
-            ESP_LOGI(TAG, "LED n x: %d, y: %d = %d", x, y, led);
-            brightness = 10;
-
-            led_strip_set_pixel(led_strip, led, brightness * 50, brightness * 50, brightness * 50);
-            led_strip_refresh(led_strip);
-            vTaskDelay(500 / portTICK_PERIOD_MS);
-        }
-        // }
-    }
-    led_strip_clear(led_strip);
-}
-#endif
 static void animations_task(void *arg)
 {
     int frame = 0;
@@ -256,6 +152,10 @@ static void animations_task(void *arg)
 }
 void app_main(void)
 {
+    init_nvs();
+
+    init_spiffs();
+
     configure_interrupts();
 
     configure_timer(DEFAULT_TIMER);
@@ -267,5 +167,13 @@ void app_main(void)
 
     configure_ble();
 
+    read_log_file();
+
+    start_logging_to_file();
+
     xTaskCreate(animations_task, "animations_task", 2048, NULL, 10, NULL);
+
+    read_log_file();
+    stop_logging_to_file();
+    reset_all_storage();
 }
