@@ -24,7 +24,6 @@
 #include "nimble/ble.h"
 #include "nimble/nimble_port.h"
 #include "nimble/nimble_port_freertos.h"
-#include "modlog/modlog.h"
 #include "host/ble_hs.h"
 #include "host/util/util.h"
 #include "services/gap/ble_svc_gap.h"
@@ -39,17 +38,12 @@ extern QueueHandle_t evt_queue;
 
 static const char *TAG = "NimBLE";
 
-// static const ble_uuid128_t gatt_svr_svc_uuid =
-//     BLE_UUID128_INIT(0x40, 0x06, 0xbc, 0x56, 0xd0, 0xc9, 0x4f, 0x7b, 0xb2, 0x77, 0x87, 0x1c, 0x65, 0xdf, 0x67, 0x34);
 static const ble_uuid128_t gatt_svr_svc_uuid =
     BLE_UUID128_INIT(0x4b, 0x91, 0x31, 0xc3, 0xc9, 0xc5, 0xcc, 0x8f, 0x9e, 0x45, 0xb5, 0x1f, 0x01, 0xc2, 0xaf, 0x4f);
 
 /* A characteristic that can be subscribed to */
 static uint8_t gatt_svr_chr_val;
 static uint16_t gatt_svr_chr_val_handle;
-// static const ble_uuid128_t gatt_svr_chr_uuid =
-//     BLE_UUID128_INIT(0x00, 0x00, 0x00, 0x00, 0x11, 0x11, 0x11, 0x11,
-//                      0x22, 0x22, 0x22, 0x22, 0x33, 0x33, 0x33, 0x33);
 static const ble_uuid128_t gatt_svr_chr_uuid =
     BLE_UUID128_INIT(0xa8, 0x26, 0x1b, 0x36, 0x07, 0xea, 0xf5, 0xb7, 0x88, 0x46, 0xe1, 0x36, 0x3e, 0x48, 0xb5, 0xbe);
 
@@ -126,13 +120,13 @@ gatt_svc_access(uint16_t conn_handle, uint16_t attr_handle,
     case BLE_GATT_ACCESS_OP_READ_CHR:
         if (conn_handle != BLE_HS_CONN_HANDLE_NONE)
         {
-            MODLOG_DFLT(INFO, "Characteristic read; conn_handle=%d attr_handle=%d\n",
-                        conn_handle, attr_handle);
+            ESP_LOGI(TAG, "Characteristic read; conn_handle=%d attr_handle=%d\n",
+                     conn_handle, attr_handle);
         }
         else
         {
-            MODLOG_DFLT(INFO, "Characteristic read by NimBLE stack; attr_handle=%d\n",
-                        attr_handle);
+            ESP_LOGI(TAG, "Characteristic read by NimBLE stack; attr_handle=%d\n",
+                     attr_handle);
         }
         return 0;
 
@@ -144,36 +138,31 @@ gatt_svc_access(uint16_t conn_handle, uint16_t attr_handle,
                                 sizeof(gatt_svr_chr_val),
                                 sizeof(gatt_svr_chr_val),
                                 &gatt_svr_chr_val, NULL);
-            printf("Characteristic write; conn_handle=%d attr_handle=%d value =%d\n",
-                   conn_handle,
-                   attr_handle, gatt_svr_chr_val);
 
-            interrupt_source_t it_source = {.is_ble = true, .mask_value = gatt_svr_chr_val, .is_timer = false};
+            if (evt_queue == NULL)
+            {
+                ESP_LOGE(TAG, "Unable to send command to queue!");
+                return -1;
+            }
 
-            xQueueSend(evt_queue, &it_source, 0);
+            printf("Characteristic write; conn_handle=%d attr_handle=%d value =%d\n", conn_handle, attr_handle, gatt_svr_chr_val);
 
+            interrupt_ctx_t it = {.mask_value = (void *)&gatt_svr_chr_val, .source = IT_SOURCE_BLE};
+            xQueueSend(evt_queue, &it, 0);
             return rc;
         }
-        // uuid = ctxt->chr->uuid;
-        // if (attr_handle == gatt_svr_chr_val_handle)
-        // {
-        //     ble_gatts_chr_updated(attr_handle);
-        //     MODLOG_DFLT(INFO, "Notification/Indication scheduled for "
-        //                       "all subscribed peers %u .\n",
-        //                 gatt_svr_chr_val);
-        //     return rc;
         return 0;
 
     case BLE_GATT_ACCESS_OP_READ_DSC:
         if (conn_handle != BLE_HS_CONN_HANDLE_NONE)
         {
-            MODLOG_DFLT(INFO, "Descriptor read; conn_handle=%d attr_handle=%d\n",
-                        conn_handle, attr_handle);
+            ESP_LOGI(TAG, "Descriptor read; conn_handle=%d attr_handle=%d\n",
+                     conn_handle, attr_handle);
         }
         else
         {
-            MODLOG_DFLT(INFO, "Descriptor read by NimBLE stack; attr_handle=%d\n",
-                        attr_handle);
+            ESP_LOGI(TAG, "Descriptor read by NimBLE stack; attr_handle=%d\n",
+                     attr_handle);
         }
         return 0;
 
@@ -199,23 +188,23 @@ void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg)
     switch (ctxt->op)
     {
     case BLE_GATT_REGISTER_OP_SVC:
-        MODLOG_DFLT(DEBUG, "registered service %s with handle=%d\n",
-                    ble_uuid_to_str(ctxt->svc.svc_def->uuid, buf),
-                    ctxt->svc.handle);
+        ESP_LOGI(TAG, "registered service %s with handle=%d\n",
+                 ble_uuid_to_str(ctxt->svc.svc_def->uuid, buf),
+                 ctxt->svc.handle);
         break;
 
     case BLE_GATT_REGISTER_OP_CHR:
-        MODLOG_DFLT(DEBUG, "registering characteristic %s with "
-                           "def_handle=%d val_handle=%d\n",
-                    ble_uuid_to_str(ctxt->chr.chr_def->uuid, buf),
-                    ctxt->chr.def_handle,
-                    ctxt->chr.val_handle);
+        ESP_LOGI(TAG, "registering characteristic %s with "
+                      "def_handle=%d val_handle=%d\n",
+                 ble_uuid_to_str(ctxt->chr.chr_def->uuid, buf),
+                 ctxt->chr.def_handle,
+                 ctxt->chr.val_handle);
         break;
 
     case BLE_GATT_REGISTER_OP_DSC:
-        MODLOG_DFLT(DEBUG, "registering descriptor %s with handle=%d\n",
-                    ble_uuid_to_str(ctxt->dsc.dsc_def->uuid, buf),
-                    ctxt->dsc.handle);
+        ESP_LOGI(TAG, "registering descriptor %s with handle=%d\n",
+                 ble_uuid_to_str(ctxt->dsc.dsc_def->uuid, buf),
+                 ctxt->dsc.handle);
         break;
 
     default:
@@ -230,7 +219,6 @@ int gatt_svr_init(void)
 
     ble_svc_gap_init();
     ble_svc_gatt_init();
-    // ble_svc_ans_init();
 
     rc = ble_gatts_count_cfg(gatt_svr_svcs);
     if (rc != 0)

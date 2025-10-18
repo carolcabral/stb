@@ -4,7 +4,6 @@
 #include "nimble/ble.h"
 #include "nimble/nimble_port.h"
 #include "nimble/nimble_port_freertos.h"
-#include "modlog/modlog.h"
 #include "host/ble_hs.h"
 #include "host/util/util.h"
 #include "services/gap/ble_svc_gap.h"
@@ -14,45 +13,43 @@
 
 #include "bleprph.h"
 
+#define MAC2STR(a) (a)[5], (a)[4], (a)[3], (a)[2], (a)[1], (a)[0]
+// #define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
+#define MACSTR "%02x:%02x:%02x:%02x:%02x:%02x"
+
+#define CONFIG_BLE_NAME "@crlcbrl"
+
 static const char *TAG = "NimBLE";
-static uint8_t own_addr_type;
 
 void ble_store_config_init(void);
 static int bleprph_gap_event(struct ble_gap_event *event, void *arg);
 int gatt_svr_init(void);
 
-void print_addr(const void *addr)
-{
-    const uint8_t *u8p;
-
-    u8p = addr;
-    MODLOG_DFLT(INFO, "%02x:%02x:%02x:%02x:%02x:%02x",
-                u8p[5], u8p[4], u8p[3], u8p[2], u8p[1], u8p[0]);
-}
 /**
  * Logs information about a connection to the console.
  */
 static void bleprph_print_conn_desc(struct ble_gap_conn_desc *desc)
 {
-    MODLOG_DFLT(INFO, "handle=%d our_ota_addr_type=%d our_ota_addr=",
-                desc->conn_handle, desc->our_ota_addr.type);
-    print_addr(desc->our_ota_addr.val);
-    MODLOG_DFLT(INFO, " our_id_addr_type=%d our_id_addr=",
-                desc->our_id_addr.type);
-    print_addr(desc->our_id_addr.val);
-    MODLOG_DFLT(INFO, " peer_ota_addr_type=%d peer_ota_addr=",
-                desc->peer_ota_addr.type);
-    print_addr(desc->peer_ota_addr.val);
-    MODLOG_DFLT(INFO, " peer_id_addr_type=%d peer_id_addr=",
-                desc->peer_id_addr.type);
-    print_addr(desc->peer_id_addr.val);
-    MODLOG_DFLT(INFO, " conn_itvl=%d conn_latency=%d supervision_timeout=%d "
-                      "encrypted=%d authenticated=%d bonded=%d\n",
-                desc->conn_itvl, desc->conn_latency,
-                desc->supervision_timeout,
-                desc->sec_state.encrypted,
-                desc->sec_state.authenticated,
-                desc->sec_state.bonded);
+    ESP_LOGI(TAG, "handle=%d", desc->conn_handle);
+    ESP_LOGI(TAG, "\t our_ota_addr_type = %d our_ota_addr = " MACSTR,
+             desc->our_ota_addr.type, MAC2STR(desc->our_ota_addr.val));
+
+    ESP_LOGI(TAG, "\t our_id_addr_type = %d our_id_addr = " MACSTR,
+             desc->our_id_addr.type, MAC2STR(desc->our_id_addr.val));
+
+    ESP_LOGI(TAG, "\t peer_ota_addr_type = %d peer_ota_addr = " MACSTR,
+             desc->peer_ota_addr.type, MAC2STR(desc->peer_ota_addr.val));
+
+    ESP_LOGI(TAG, "\t peer_id_addr_type = %d peer_id_addr = " MACSTR,
+             desc->peer_id_addr.type, MAC2STR(desc->peer_id_addr.val));
+
+    ESP_LOGI(TAG, "\t conn_itvl=%d conn_latency=%d supervision_timeout=%d "
+                  "encrypted=%d authenticated=%d bonded=%d\n",
+             desc->conn_itvl, desc->conn_latency,
+             desc->supervision_timeout,
+             desc->sec_state.encrypted,
+             desc->sec_state.authenticated,
+             desc->sec_state.bonded);
 }
 
 /**
@@ -62,25 +59,16 @@ static void bleprph_print_conn_desc(struct ble_gap_conn_desc *desc)
  */
 static void bleprph_advertise(void)
 {
-    struct ble_gap_adv_params adv_params;
-    struct ble_hs_adv_fields fields;
+    struct ble_gap_adv_params adv_params = {0};
+    struct ble_hs_adv_fields fields = {0};
     const char *name;
     int rc;
-
-    /**
-     *  Set the advertisement data included in our advertisements:
-     *     o Flags (indicates advertisement type and other general info).
-     *     o Advertising tx power.
-     *     o Device name.
-     *     o 16-bit service UUIDs (alert notifications).
-     */
-
-    memset(&fields, 0, sizeof fields);
 
     /* Advertise two flags:
      *     o Discoverability in forthcoming advertisement (general)
      *     o BLE-only (BR/EDR unsupported).
      */
+    // BLE_HS_ADV_F_DISC_LTD (Limited Discoverable Mode)
     fields.flags = BLE_HS_ADV_F_DISC_GEN |
                    BLE_HS_ADV_F_BREDR_UNSUP;
 
@@ -89,34 +77,34 @@ static void bleprph_advertise(void)
      * special value BLE_HS_ADV_TX_PWR_LVL_AUTO.
      */
     fields.tx_pwr_lvl_is_present = 1;
-    fields.tx_pwr_lvl = BLE_HS_ADV_TX_PWR_LVL_AUTO;
+    fields.tx_pwr_lvl = BLE_HS_ADV_TX_PWR_LVL_AUTO; // ESP_PWR_LVL_P9
 
     name = ble_svc_gap_device_name();
     fields.name = (uint8_t *)name;
     fields.name_len = strlen(name);
     fields.name_is_complete = 1;
 
-    // fields.uuids16 = (ble_uuid16_t[]){
-    //     BLE_UUID16_INIT(GATT_SVR_SVC_ALERT_UUID)};
-    // fields.num_uuids16 = 1;
-    // fields.uuids16_is_complete = 1;
-
     rc = ble_gap_adv_set_fields(&fields);
     if (rc != 0)
     {
-        MODLOG_DFLT(ERROR, "error setting advertisement data; rc=%d\n", rc);
+        ESP_LOGE(TAG, "Error setting advertisement data; rc=%d\n", rc);
         return;
     }
 
     /* Begin advertising. */
-    memset(&adv_params, 0, sizeof adv_params);
+    // BLE_GAP_CONN_MODE_NON(non - connectable)
+    // BLE_GAP_CONN_MODE_DIR(directed - connectable)
+    // BLE_GAP_CONN_MODE_UND(undirected - connectable)
     adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
+
+    // BLE_GAP_DISC_MODE_NON (non-discoverable).
+    // BLE_GAP_DISC_MODE_LTD(limited - discoverable).
+    // BLE_GAP_DISC_MODE_GEN(general - discoverable)
     adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
-    rc = ble_gap_adv_start(own_addr_type, NULL, BLE_HS_FOREVER,
-                           &adv_params, bleprph_gap_event, NULL);
+    rc = ble_gap_adv_start(0, NULL, BLE_HS_FOREVER, &adv_params, bleprph_gap_event, NULL);
     if (rc != 0)
     {
-        MODLOG_DFLT(ERROR, "error enabling advertisement; rc=%d\n", rc);
+        ESP_LOGE(TAG, "Error enabling advertisement; rc=%d\n", rc);
         return;
     }
 }
@@ -145,16 +133,16 @@ static int bleprph_gap_event(struct ble_gap_event *event, void *arg)
     {
     case BLE_GAP_EVENT_CONNECT:
         /* A new connection was established or a connection attempt failed. */
-        MODLOG_DFLT(INFO, "connection %s; status=%d ",
-                    event->connect.status == 0 ? "established" : "failed",
-                    event->connect.status);
+        ESP_LOGW(TAG, "Connection %s; status=%d ",
+                 event->connect.status == 0 ? "established" : "failed",
+                 event->connect.status);
+
         if (event->connect.status == 0)
         {
             rc = ble_gap_conn_find(event->connect.conn_handle, &desc);
             assert(rc == 0);
             bleprph_print_conn_desc(&desc);
         }
-        MODLOG_DFLT(INFO, "\n");
 
         if (event->connect.status != 0)
         {
@@ -164,64 +152,58 @@ static int bleprph_gap_event(struct ble_gap_event *event, void *arg)
         return 0;
 
     case BLE_GAP_EVENT_DISCONNECT:
-        MODLOG_DFLT(INFO, "disconnect; reason=%d ", event->disconnect.reason);
+        ESP_LOGW(TAG, "BLE disconnected! Reason=%d ", event->disconnect.reason);
         bleprph_print_conn_desc(&event->disconnect.conn);
-        MODLOG_DFLT(INFO, "\n");
         bleprph_advertise();
         return 0;
 
     case BLE_GAP_EVENT_CONN_UPDATE:
         /* The central has updated the connection parameters. */
-        MODLOG_DFLT(INFO, "connection updated; status=%d ",
-                    event->conn_update.status);
+        ESP_LOGI(TAG, "Connection updated; status=%d ", event->conn_update.status);
         rc = ble_gap_conn_find(event->conn_update.conn_handle, &desc);
         assert(rc == 0);
         bleprph_print_conn_desc(&desc);
-        MODLOG_DFLT(INFO, "\n");
         return 0;
 
     case BLE_GAP_EVENT_ADV_COMPLETE:
-        MODLOG_DFLT(INFO, "advertise complete; reason=%d",
-                    event->adv_complete.reason);
+        ESP_LOGV(TAG, "advertise complete; reason=%d", event->adv_complete.reason);
         bleprph_advertise();
         return 0;
 
     case BLE_GAP_EVENT_ENC_CHANGE:
         /* Encryption has been enabled or disabled for this connection. */
-        MODLOG_DFLT(INFO, "encryption change event; status=%d ",
-                    event->enc_change.status);
+        ESP_LOGW(TAG, "Encryption change event; status=%d ", event->enc_change.status);
         rc = ble_gap_conn_find(event->enc_change.conn_handle, &desc);
         assert(rc == 0);
         bleprph_print_conn_desc(&desc);
-        MODLOG_DFLT(INFO, "\n");
         return 0;
 
     case BLE_GAP_EVENT_NOTIFY_TX:
-        MODLOG_DFLT(INFO, "notify_tx event; conn_handle=%d attr_handle=%d "
-                          "status=%d is_indication=%d",
-                    event->notify_tx.conn_handle,
-                    event->notify_tx.attr_handle,
-                    event->notify_tx.status,
-                    event->notify_tx.indication);
+        ESP_LOGW(TAG, "Notify_tx event; conn_handle=%d attr_handle=%d "
+                      "status=%d is_indication=%d",
+                 event->notify_tx.conn_handle,
+                 event->notify_tx.attr_handle,
+                 event->notify_tx.status,
+                 event->notify_tx.indication);
         return 0;
 
     case BLE_GAP_EVENT_SUBSCRIBE:
-        MODLOG_DFLT(INFO, "subscribe event; conn_handle=%d attr_handle=%d "
-                          "reason=%d prevn=%d curn=%d previ=%d curi=%d\n",
-                    event->subscribe.conn_handle,
-                    event->subscribe.attr_handle,
-                    event->subscribe.reason,
-                    event->subscribe.prev_notify,
-                    event->subscribe.cur_notify,
-                    event->subscribe.prev_indicate,
-                    event->subscribe.cur_indicate);
+        ESP_LOGI(TAG, "Subscribe event; conn_handle=%d attr_handle=%d "
+                      "reason=%d prevn=%d curn=%d previ=%d curi=%d\n",
+                 event->subscribe.conn_handle,
+                 event->subscribe.attr_handle,
+                 event->subscribe.reason,
+                 event->subscribe.prev_notify,
+                 event->subscribe.cur_notify,
+                 event->subscribe.prev_indicate,
+                 event->subscribe.cur_indicate);
         return 0;
 
     case BLE_GAP_EVENT_MTU:
-        MODLOG_DFLT(INFO, "mtu update event; conn_handle=%d cid=%d mtu=%d\n",
-                    event->mtu.conn_handle,
-                    event->mtu.channel_id,
-                    event->mtu.value);
+        ESP_LOGI(TAG, "MTU update event; conn_handle=%d cid=%d mtu=%d\n",
+                 event->mtu.conn_handle,
+                 event->mtu.channel_id,
+                 event->mtu.value);
         return 0;
 
     case BLE_GAP_EVENT_REPEAT_PAIRING:
@@ -229,6 +211,7 @@ static int bleprph_gap_event(struct ble_gap_event *event, void *arg)
          * establish a new secure link.  This app sacrifices security for
          * convenience: just throw away the old bond and accept the new link.
          */
+        ESP_LOGI(TAG, "Repeat pairing   event; conn_handle=%d\n", event->repeat_pairing.conn_handle);
 
         /* Delete the old bond. */
         rc = ble_gap_conn_find(event->repeat_pairing.conn_handle, &desc);
@@ -241,14 +224,14 @@ static int bleprph_gap_event(struct ble_gap_event *event, void *arg)
         return BLE_GAP_REPEAT_PAIRING_RETRY;
 
     case BLE_GAP_EVENT_PASSKEY_ACTION:
-        MODLOG_DFLT(INFO, "Pass key action event!\n");
+        ESP_LOGW(TAG, "Pass key action event!\n");
         return 0;
 
     case BLE_GAP_EVENT_AUTHORIZE:
-        MODLOG_DFLT(INFO, "authorize event: conn_handle=%d attr_handle=%d is_read=%d",
-                    event->authorize.conn_handle,
-                    event->authorize.attr_handle,
-                    event->authorize.is_read);
+        ESP_LOGW(TAG, "authorize event: conn_handle=%d attr_handle=%d is_read=%d",
+                 event->authorize.conn_handle,
+                 event->authorize.attr_handle,
+                 event->authorize.is_read);
 
         /* The default behaviour for the event is to reject authorize request */
         event->authorize.out_response = BLE_GAP_AUTHORIZE_REJECT;
@@ -265,29 +248,13 @@ static void bleprph_on_sync(void)
 
     assert(rc == 0);
 
-    /* Figure out address to use while advertising (no privacy for now) */
-    rc = ble_hs_id_infer_auto(0, &own_addr_type);
-    if (rc != 0)
-    {
-        MODLOG_DFLT(ERROR, "error determining address type; rc=%d\n", rc);
-        return;
-    }
-
-    /* Printing ADDR */
-    uint8_t addr_val[6] = {0};
-    rc = ble_hs_id_copy_addr(own_addr_type, addr_val, NULL);
-
-    // MODLOG_DFLT(INFO, "Device Address: ");
-    // print_addr(addr_val);
-    // MODLOG_DFLT(INFO, "\n");
-
     /* Begin advertising. */
     bleprph_advertise();
 }
 
 void bleprph_host_task(void *param)
 {
-    ESP_LOGI(TAG, "BLE Host Task Started");
+    ESP_LOGV(TAG, "BLE Host Task Started");
     /* This function will return only when nimble_port_stop() is executed */
     nimble_port_run();
     nimble_port_freertos_deinit();
@@ -321,8 +288,13 @@ void configure_ble()
     assert(rc == 0);
 
     /* Set the default device name. */
-    rc = ble_svc_gap_device_name_set("@crlcbrl");
+    rc = ble_svc_gap_device_name_set(CONFIG_BLE_NAME);
     assert(rc == 0);
+
+    /*Lower TX power*/
+    // ESP_ERROR_CHECK(esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_DEFAULT, ESP_PWR_LVL_N12));
+    // ESP_ERROR_CHECK(esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_ADV, ESP_PWR_LVL_N12));
+    // ESP_ERROR_CHECK(esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_CONN_HDL0, ESP_PWR_LVL_N12));
 
     /* XXX Need to have template for store */
     // ble_store_config_init();
