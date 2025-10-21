@@ -11,10 +11,21 @@
 #include "bleprph.h"
 #include "timer.h"
 #include "lights.h"
+#include "storage.h"
 
+#include <string.h>
 void app_main(void)
 {
-    // init_nvs();
+    init_nvs();
+
+    // char *message = "Hello from ESP!";
+    // init_spiffs();
+    // read_file("/spiffs/teste.txt");
+    // write_file("/spiffs/teste.txt", message, strlen(message));
+
+    // read_file("/spiffs/teste.txt");
+
+    // close_spiffs();
 
     configure_interrupts();
 

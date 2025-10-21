@@ -6,14 +6,6 @@
 
 // #define M_PI 3.14159265
 
-typedef struct
-{
-    uint8_t red;
-    uint8_t green;
-    uint8_t blue;
-
-} color_t;
-
 static void color_wheel(uint8_t pos, color_t *color)
 {
     if (pos < 85)
@@ -348,80 +340,7 @@ void color_pulse(led_strip_handle_t led_strip, int frame)
     led_strip_refresh(led_strip);
 }
 
-// ====== Fire
-void anim_fire_by_frame(led_strip_handle_t led_strip, int frame)
-{
-    static uint8_t heat[6][5] = {0};
-    const uint8_t decay_rate = 20;
-    const uint8_t spark_chance = 10;
-    const uint8_t max_heat = 255;
-
-    // Dissipação rápida do calor
-    for (int y = 0; y < CONFIG_LED_STRIP_ROWS; y++)
-    {
-        for (int x = 0; x < CONFIG_LED_STRIP_COLS; x++)
-        {
-            heat[y][x] = (heat[y][x] > decay_rate) ? (heat[y][x] - decay_rate) : 0;
-
-            // Chance de faísca explosiva
-            if ((esp_random() % 100) < spark_chance)
-            {
-                heat[y][x] = (esp_random() % 100) + 155; // 155–255
-            }
-        }
-    }
-
-    led_strip_clear(led_strip);
-
-    for (int y = 0; y < CONFIG_LED_STRIP_ROWS; y++)
-    {
-        for (int x = 0; x < CONFIG_LED_STRIP_COLS; x++)
-        {
-            uint8_t value = heat[y][x];
-            uint8_t r, g, b;
-
-            if (value > 230)
-            {
-                r = 255;
-                g = 255;
-                b = 80; // amarelo quente
-            }
-            else if (value > 180)
-            {
-                r = 255;
-                g = 180;
-                b = 40; // amarelo alaranjado
-            }
-            else if (value > 120)
-            {
-                r = 255;
-                g = 100;
-                b = 10; // laranja intenso
-            }
-            else if (value > 60)
-            {
-                r = 200;
-                g = 60;
-                b = 0; // vermelho-laranja
-            }
-            else if (value > 0)
-            {
-                r = 120;
-                g = 20;
-                b = 0; // vermelho escuro
-            }
-            else
-            {
-                r = g = b = 0;
-            }
-
-            uint8_t pixel = matrix[y][x];
-            led_strip_set_pixel(led_strip, pixel, r, g, b);
-        }
-    }
-
-    led_strip_refresh(led_strip);
-}
+// === Purple Spiral wave ===
 void anim_spiral_wave(led_strip_handle_t led_strip, int frame)
 {
     // Ordem dos pixels da espiral, do centro para fora
@@ -492,61 +411,104 @@ void anim_spiral_wave(led_strip_handle_t led_strip, int frame)
     led_strip_refresh(led_strip);
 }
 
-void anim_pineapple(led_strip_handle_t led_strip, int frame)
+// ==== PINEAPPLE
+void anim_pineapple_expand(led_strip_handle_t led_strip, int frame)
 {
-    // --- Corpo do abacaxi (amarelo/laranja) ---
-    static const uint8_t body_pixels[] = {
-        8, 9, 10,
-        13, 14, 15,
-        16, 17, 18,
-        19, 20, 21};
+    uint8_t brightness = 255;
+    int delay = 40;
 
-    // --- Folhas (verde) ---
-    static const uint8_t leaves_pixels[] = {
-        2, 3, 4,
-        7};
+    // === Colors ===
+    color_t leaf = {
+                .red = 0,
+                .green = 50,
+                .blue = 0,
 
-    // --- Base / sombra ---
-    static const uint8_t base_pixels[] = {
-        22, 23, 24};
+            },
+            body = {
+                .red = 50,
+                .green = 50,
+                .blue = 0,
+            },
+            base = {
+                .red = 130,
+                .green = 40,
+                .blue = 0,
+            };
 
+    // Full pineapple
+    static uint8_t leafs_full[] = {16, 17};
+    static uint8_t body_full[] = {8, 9, 10,
+                                  13, 14, 15,
+                                  20, 21, 22};
+    static uint8_t base_full[] = {11, 12, 23};
+
+    // Expand1
+    static uint8_t leafs1[] = {17};
+    static uint8_t body1[] = {0, 1, 2, 3, 4,
+                              7, 8, 9, 10, 11,
+                              19, 20, 21, 22, 23,
+                              24, 25, 26, 27};
+
+    // Expand2
+    static uint8_t body2[] = {0, 1, 2, 3, 4, 5,
+                              //   6, 18,
+                              //   11, 23,
+                              24, 25, 26, 27, 28, 29};
+
+    // Full
+    for (uint8_t i = 0; i < sizeof(leafs_full); i++)
+        led_strip_set_pixel(led_strip, leafs_full[i], leaf.red, leaf.green, leaf.blue);
+    for (uint8_t i = 0; i < sizeof(body_full); i++)
+        led_strip_set_pixel(led_strip, body_full[i], body.red, body.green, body.blue);
+    for (uint8_t i = 0; i < sizeof(base_full); i++)
+        led_strip_set_pixel(led_strip, base_full[i], base.red, base.green, base.blue);
+    led_strip_refresh(led_strip);
+    vTaskDelay(delay * 10 / portTICK_PERIOD_MS);
     led_strip_clear(led_strip);
 
-    // Pulso suave no brilho
-    float pulse = (sinf(frame * 0.2f) + 1.0f) * 0.5f; // varia entre 0 e 1
-    uint8_t body_r = (uint8_t)(200 + 55 * pulse);     // entre amarelo e laranja
-    uint8_t body_g = (uint8_t)(150 + 80 * pulse);
-    uint8_t body_b = 0;
+    // Expand1
+    for (uint8_t i = 0; i < sizeof(leafs1); i++)
+        led_strip_set_pixel(led_strip, leafs1[i], leaf.red, leaf.green, leaf.blue);
 
-    uint8_t leaf_r = 0;
-    uint8_t leaf_g = (uint8_t)(120 + 100 * pulse); // verde pulsante
-    uint8_t leaf_b = 0;
-
-    uint8_t base_r = (uint8_t)(100 * pulse);
-    uint8_t base_g = (uint8_t)(40 * pulse);
-    uint8_t base_b = 0;
-
-    // Corpo
-    for (uint8_t i = 0; i < sizeof(body_pixels); i++)
-        led_strip_set_pixel(led_strip, body_pixels[i], body_r, body_g, body_b);
-
-    // Folhas
-    for (uint8_t i = 0; i < sizeof(leaves_pixels); i++)
-        led_strip_set_pixel(led_strip, leaves_pixels[i], leaf_r, leaf_g, leaf_b);
-
-    // Base
-    for (uint8_t i = 0; i < sizeof(base_pixels); i++)
-        led_strip_set_pixel(led_strip, base_pixels[i], base_r, base_g, base_b);
-
+    for (uint8_t i = 0; i < sizeof(body1); i++)
+        led_strip_set_pixel(led_strip, body1[i], body.red, body.green, body.blue);
     led_strip_refresh(led_strip);
+    vTaskDelay(delay / portTICK_PERIOD_MS);
+    led_strip_clear(led_strip);
+
+    // Expand2
+    for (uint8_t i = 0; i < sizeof(body2); i++)
+        led_strip_set_pixel(led_strip, body2[i], body.red, body.green, body.blue);
+    led_strip_refresh(led_strip);
+    vTaskDelay(delay / portTICK_PERIOD_MS);
+    led_strip_clear(led_strip);
+
+    // Pause
+    vTaskDelay(delay * 5 / portTICK_PERIOD_MS);
+
+    // Expand2
+    for (uint8_t i = 0; i < sizeof(body2); i++)
+        led_strip_set_pixel(led_strip, body2[i], body.red, body.green, body.blue);
+    led_strip_refresh(led_strip);
+    vTaskDelay(delay / portTICK_PERIOD_MS);
+    led_strip_clear(led_strip);
+
+    // Expand1
+    for (uint8_t i = 0; i < sizeof(leafs1); i++)
+        led_strip_set_pixel(led_strip, leafs1[i], leaf.red, leaf.green, leaf.blue);
+    for (uint8_t i = 0; i < sizeof(body1); i++)
+        led_strip_set_pixel(led_strip, body1[i], body.red, body.green, body.blue);
+    led_strip_refresh(led_strip);
+    vTaskDelay(delay / portTICK_PERIOD_MS);
+    led_strip_clear(led_strip);
 }
+
 void anim_pineapple_move(led_strip_handle_t led_strip, int frame)
 {
     led_strip_clear(led_strip);
 
     // Movimento horizontal (vai da direita para esquerda)
     int offset = CONFIG_LED_STRIP_COLS - (frame % (CONFIG_LED_STRIP_COLS + 4)); // 4 = largura + espaço
-
     // Pulso de brilho para dar vida
     float pulse = (sinf(frame * 0.25f) + 1.0f) * 0.5f;
 
@@ -576,24 +538,145 @@ void anim_pineapple_move(led_strip_handle_t led_strip, int frame)
 
             int pixel = matrix[r][x];
 
-            if (r == 0 || r == 1)
+            if (r == 0)
             {
-                // Folhas no topo
-                if (c == 1 || (r == 0 && c != 0 && c != 2))
-                    led_strip_set_pixel(led_strip, pixel, leaf_r, leaf_g, leaf_b);
+                // Base
+                led_strip_set_pixel(led_strip, pixel, base_r, base_g, base_b);
             }
-            else if (r >= 2 && r <= 4)
+            else if (r >= 1 && r <= 3)
             {
                 // Corpo principal
                 led_strip_set_pixel(led_strip, pixel, body_r, body_g, body_b);
             }
-            else if (r == 5)
+            else if (r == 4 || r == 5)
             {
-                // Base
-                led_strip_set_pixel(led_strip, pixel, base_r, base_g, base_b);
+                // Folhas no topo
+                if (c == 1 || (r == 0 && c != 0 && c != 2))
+                    led_strip_set_pixel(led_strip, pixel, leaf_r, leaf_g, leaf_b);
             }
         }
     }
 
     led_strip_refresh(led_strip);
 }
+
+void anim_pineapple_spin(led_strip_handle_t led_strip, int frame)
+{
+    static int last_change = 0;
+    static int spin_dir = 1;        // 1 = direita, -1 = esquerda
+    static float scale = 1.0f;      // tamanho atual
+    static float target_scale = 10; // novo tamanho desejado
+    static int spin_offset = 0;     // deslocamento horizontal
+    static int spin_speed = 1;      // velocidade de rotação
+
+    // A cada ~100 frames, muda o comportamento aleatoriamente
+    if (frame - last_change > 100)
+    {
+        last_change = frame;
+        spin_dir = (esp_random() % 2) ? 1 : -1;
+        target_scale = 0.8f + 0.8f * ((esp_random() % 100) / 100.0f);
+        spin_speed = 1 + esp_random() % 2;
+    }
+
+    // Aproxima suavemente o tamanho atual do novo alvo
+    scale += (target_scale - scale) * 0.05f;
+
+    // Movimento de rotação (oscila entre bordas)
+    spin_offset += spin_dir * spin_speed;
+    if (spin_offset > CONFIG_LED_STRIP_COLS - 3 || spin_offset < 0)
+        spin_dir *= -1;
+
+    // Pulso para vida
+    float pulse = (sinf(frame * 0.25f) + 1.0f) * 0.5f;
+
+    // === Cores ===
+    uint8_t body_r = (uint8_t)(180 + 75 * pulse);
+    uint8_t body_g = (uint8_t)(140 + 100 * pulse);
+    uint8_t body_b = 0;
+
+    uint8_t leaf_r = 0;
+    uint8_t leaf_g = (uint8_t)(100 + 120 * pulse);
+    uint8_t leaf_b = 0;
+
+    uint8_t base_r = (uint8_t)(90 + 40 * pulse);
+    uint8_t base_g = (uint8_t)(50 * pulse);
+    uint8_t base_b = 0;
+
+    led_strip_clear(led_strip);
+
+    // === Desenha o abacaxi ===
+    int height = (int)(6 * scale);
+    if (height < 2)
+        height = 2;
+    if (height > CONFIG_LED_STRIP_ROWS)
+        height = CONFIG_LED_STRIP_ROWS;
+
+    int top_row = CONFIG_LED_STRIP_ROWS - height;
+
+    for (int r = 0; r < height; r++)
+    {
+        int abs_row = top_row + r;
+        if (abs_row < 0 || abs_row >= CONFIG_LED_STRIP_ROWS)
+            continue;
+
+        for (int c = 0; c < 3; c++)
+        {
+            int abs_col = spin_offset + c;
+            if (abs_col < 0 || abs_col >= CONFIG_LED_STRIP_COLS)
+                continue;
+
+            int pixel = matrix[abs_row][abs_col];
+            // Folhas (parte de cima)
+            if (r == 0)
+            {
+                led_strip_set_pixel(led_strip, pixel, base_r, base_g, base_b);
+            }
+            // Corpo
+            else if (r >= 1 && r <= 3)
+            {
+                led_strip_set_pixel(led_strip, pixel, body_r, body_g, body_b);
+            }
+            // Base
+            else if (r == 4 || r == 5)
+            {
+                if (c == 1 || (r == 0 && c != 0 && c != 2))
+                    led_strip_set_pixel(led_strip, pixel, leaf_r, leaf_g, leaf_b);
+            }
+        }
+    }
+
+    led_strip_refresh(led_strip);
+}
+
+const anim_ctx_t general_animations[] =
+    {
+        // Entre 10 e 20
+        {"RAINBOW_SCROLL", &rainbow_scroll, 10},
+
+        // Entre 10 e 20
+        {"COLOR_PULSE", &color_pulse, 10},
+
+        // {"AUDIO_SPECTRUM", &audio_spectrum, 100},
+        {"TINKLE_STAR_SINGLE_COLOR", &tinkle_star_single_color, 20},
+        {"TINKLE_START_MULTI_COLOR", &tinkle_star_rainbow, 20},
+
+        // {"FIRE", &anim_fire_by_frame, 100},
+
+        {"MOVING_PINEAPLE", &anim_pineapple_move, 200},
+        {"PINEAPPLE", &anim_pineapple_expand, 20},
+        {"SPINNING_PINEAPLE", &anim_pineapple_spin, 200},
+
+        // sky_of_stars(led_strip);
+
+        {"LINE_SINGLE_COLOR_CW", &rotating_cross_cw, 10},
+        {"LINE_SINGLE_COLOR_CCW", &rotating_cross_ccw, 10},
+
+        // "LINE_SINGLE_COLOR", &rotating_cross_single_color(led_strip, frame, frame % 2);
+
+        // LINE_MULTI_COLOR_CW, &rotating_cross_rainbow_with_trail(led_strip, frame, 1);
+        // LINE_MULTI_COLOR_CCW &rotating_cross_rainbow_with_trail(led_strip, frame, 0);
+        // LINE_MULTI_COLOR_, &rotating_cross_rainbow_with_trail(led_strip, frame, frame % 2);
+        {"SPIRAL_WAVE", &anim_spiral_wave, 50},
+};
+
+uint8_t num_animations = sizeof(general_animations) / sizeof(anim_ctx_t);
